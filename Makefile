@@ -1,4 +1,4 @@
-# Controlla se l'utente è root
+# Check if you are root
 ifeq ($(shell id -u),0)
 $(error Please, do not exec make as root)
 endif
