@@ -24,8 +24,8 @@ install: build
 	sudo cp target/release/$(BINARY_NAME) $(INSTALL_DIR)
 	mkdir -p $(CONFIG_INSTALL_DIR)
 	cp $(CONFIG_DIR)/* $(CONFIG_INSTALL_DIR)
-	sudo mkdir -p $(ASSETS_INSTALL_DIR)
-	sudo cp $(ASSETS_DIR)/* $(ASSETS_INSTALL_DIR)
+	mkdir -p $(ASSETS_INSTALL_DIR)
+	cp $(ASSETS_DIR)/* $(ASSETS_INSTALL_DIR)
 
 # Clean the project
 clean:
