@@ -1,0 +1,11 @@
+[package]
+name = "e4docker"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+configparser = "3.1.0"
+dirs = "5.0.1"
+fltk = { version = "^1.4", git = "https://github.com/fltk-rs/fltk-rs" }
+image = "0.25.5"
+round = "0.1.2"
