@@ -1,4 +1,9 @@
-# Variabili
+# Controlla se l'utente è root
+ifeq ($(shell id -u),0)
+$(error Please, do not exec make as root)
+endif
+
+# Variables
 PROJECT_NAME = e4docker
 BINARY_NAME = $(PROJECT_NAME)
 CONFIG_DIR = config
@@ -7,14 +12,14 @@ INSTALL_DIR = /usr/local/bin
 CONFIG_INSTALL_DIR = $(HOME)/.config/$(PROJECT_NAME)
 ASSETS_INSTALL_DIR = $(CONFIG_INSTALL_DIR)/assets
 
-# Regola di default
+# Default rule
 all: build
 
-# Compilazione del progetto
+# Build the project
 build:
 	cargo build --release
 
-# Installazione del progetto
+# Install the project
 install: build
 	sudo cp target/release/$(BINARY_NAME) $(INSTALL_DIR)
 	mkdir -p $(CONFIG_INSTALL_DIR)
@@ -22,12 +27,12 @@ install: build
 	sudo mkdir -p $(ASSETS_INSTALL_DIR)
 	sudo cp $(ASSETS_DIR)/* $(ASSETS_INSTALL_DIR)
 
-# Pulizia del progetto
+# Clean the project
 clean:
 	cargo clean
 	rm -rf target
 
-# Disinstallazione del progetto
+# Uninstall the project
 uninstall:
 	sudo rm $(INSTALL_DIR)/$(BINARY_NAME)
 	rm -rf $(CONFIG_INSTALL_DIR)
