@@ -2,7 +2,7 @@ use configparser::ini::Ini;
 use fltk::{button::Button, draw, enums::ColorDepth, frame::Frame, prelude::*};
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{e4command::E4Command, e4config::E4Config, e4icon::E4Icon, error};
+use crate::{e4command::E4Command, e4config::E4Config, e4icon::E4Icon};
 
 /// The configuration for a [E4Button].
 pub struct E4ButtonConfig {
@@ -75,7 +75,7 @@ impl E4Button {
                 Ok(_) => (),
                 Err(e) => {
                     let message = format!("Failed to execute command  {}: {}", command_clone.borrow().get_cmd(), e.to_string());
-                    error(&message);
+                    fltk::dialog::alert_default(&message);
                 },
             };
         });
@@ -109,7 +109,7 @@ impl E4Button {
             Ok(_) => (),
             Err(e) => {
                 let message = format!("Cannot load the button config file: {}", e.to_string());
-                error(&message);
+                fltk::dialog::alert_default(&message);
             },
         };
 

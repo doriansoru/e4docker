@@ -27,21 +27,22 @@ fn main() {
     }
 
     // Read the global configuration
-    let config = E4Config::read(&project_config_dir);
+    let config = Rc::new(RefCell::new(E4Config::read(&project_config_dir)));
+    let config_clone = config.clone();
 
     // Create a FLTK app
     let app = app::App::default();
 
     // Create a window
     let mut wind = Window::default()
-        .with_size(config.window_width, config.window_height)
-        .center_screen()
-        .with_label(APP_TITLE);
+        .with_size(config.borrow().window_width, config.borrow().window_height)
+        .with_label(APP_TITLE);//.center_screen();
+
     // Create a frame
     let mut frame = Frame::default()
         .with_size(
-            config.window_width - config.frame_margin,
-            config.window_height - config.frame_margin,
+            config.borrow().window_width - config.borrow().frame_margin,
+            config.borrow().window_height - config.borrow().frame_margin,
         )
         .center_of(&wind)
         .center_of(&wind)
@@ -53,6 +54,13 @@ fn main() {
     wind.show();
     // Always on top
     wind.set_on_top();
+
+    let cx: i32 = config.borrow().x;
+    let cy: i32 = config.borrow().y;
+
+    if cx != 0 {
+        let _ = &wind.set_pos(cx, cy);
+    }
 
     // For the popup menu
     let mut menu = menu::MenuItem::new(&["Quit"]);
@@ -70,7 +78,9 @@ fn main() {
                 if app::event_mouse_button() == app::MouseButton::Right {
                     let (ex, ey) = app::event_coords();
                     match menu.popup(ex, ey) {
-                        Some(_val) => app::quit(),
+                        Some(_val) => {
+                            app::quit();
+                        },
                         None => {},
                     }
                 } else {
@@ -82,6 +92,8 @@ fn main() {
             },
             // Handle the drag event
             enums::Event::Drag => {
+                config_clone.borrow_mut().save_value("E4DOCKER".to_string(), "x".to_string(), (app::event_x_root() - x).to_string());
+                config_clone.borrow_mut().save_value("E4DOCKER".to_string(), "y".to_string(), (app::event_y_root() - y).to_string());
                 w.set_pos(app::event_x_root() - x, app::event_y_root() - y);
                 true
             }
@@ -90,19 +102,19 @@ fn main() {
     });
 
     // Put the buttons in the window
-    let mut x = config.margin_between_buttons;
+    let mut x = config.borrow().margin_between_buttons;
     let y: i32 = round(
-        (config.window_height as f64 - config.icon_height as f64) / 2.0,
+        (config.borrow().window_height as f64 - config.borrow().icon_height as f64) / 2.0,
         0,
     ) as i32;
-    for button_name in &config.buttons {
+    for button_name in &config.borrow().buttons {
         // Read the button config
-        let button_config: E4ButtonConfig = E4Button::read_config(&config, button_name);
+        let button_config: E4ButtonConfig = E4Button::read_config(&config.borrow(), &button_name);
         // Create the icon
         let icon = E4Icon::new(
             PathBuf::from(button_config.icon_path),
-            config.icon_width,
-            config.icon_height,
+            config.borrow().icon_width,
+            config.borrow().icon_height,
         );
         // Create the command
         let command = Rc::new(RefCell::new(button_config.command));
@@ -112,12 +124,12 @@ fn main() {
             y,
             &frame,
             Rc::clone(&command),
-            &config,
+            &config.borrow(),
             icon,
         );
         // Add the button to the window
         wind.add(&current_e4button.button);
-        x += config.icon_width + config.margin_between_buttons;
+        x += config.borrow().icon_width + config.borrow().margin_between_buttons;
     }
 
     // Run the FLTK app

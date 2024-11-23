@@ -9,8 +9,3 @@ pub mod e4icon;
 
 /// This module manages a button.
 pub mod e4button;
-
-/// Produces an error [fltk::dialog::alert_default].
-pub fn error(message: &str) {
-    fltk::dialog::alert_default(&message);
-}

@@ -1,6 +1,5 @@
 use configparser::ini::Ini;
 use std::path::{Path,PathBuf};
-use crate::error;
 
 /// The configuration of e4docker read from e4docker.conf
 pub struct E4Config {
@@ -13,6 +12,8 @@ pub struct E4Config {
     pub window_height: i32,
     pub icon_width: i32,
     pub icon_height: i32,
+    pub x: i32,
+    pub y: i32,
 }
 
 impl E4Config {
@@ -29,10 +30,19 @@ impl E4Config {
             Ok(_) => (),
             Err(e) => {
                 let message = format!("Cannot load e4docker.conf: {}", e.to_string());
-                error(&message);
+                fltk::dialog::alert_default(&message);
             },
         };
 
+        // Read the x position of the window
+        let mut x: i32 = 0;
+        let mut y: i32 = 0;
+        if let Some(val) = config.get("E4DOCKER", "X") {
+            x = val.parse().unwrap();
+        }
+        if let Some(val) = config.get("E4DOCKER", "Y") {
+            y = val.parse().unwrap();
+        }
         // Read the number of buttons
         let number_of_buttons: i32 = config
             .get("E4DOCKER", "NUMBER_OF_BUTTONS")
@@ -87,6 +97,21 @@ impl E4Config {
             window_height,
             icon_width,
             icon_height,
+            x,
+            y,
         }
+    }
+
+    pub fn save_value(&self, section: String, key: String, value: String) {
+        // Read the config file
+        let package_name = env!("CARGO_PKG_NAME");
+        let mut config_file = self.config_dir.join(package_name);
+        config_file.set_extension("conf");
+        let mut config = Ini::new();
+        let _ = config
+            .load(&config_file);
+        // Set the key and the value
+        config.set(&section, &key, Some(value));
+        let _ = config.write(config_file);
     }
 }

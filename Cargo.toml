@@ -7,6 +7,6 @@ authors = [ "Dorian Soru <doriansoru@gmail.com>"]
 [dependencies]
 configparser = "3.1.0"
 dirs = "5.0.1"
-fltk = { version = "^1.4", git = "https://github.com/fltk-rs/fltk-rs" }
+fltk  = "^1.4"
 image = "0.25.5"
 round = "0.1.2"
