@@ -6,11 +6,41 @@
 //! - assets: put here the icons for your favourite apps.
 
 use e4docker::{e4button::E4Button, e4button::E4ButtonConfig, e4config::E4Config, e4icon::E4Icon};
-use fltk::{app, enums, enums::FrameType, frame::Frame, menu, prelude::*, window::Window};
+use fltk::{app, enums, enums::FrameType, frame::Frame, menu, prelude::*,window::Window};
 use round::round;
 use std::{cell::RefCell, env, fs, path::PathBuf, rc::Rc};
 
 const APP_TITLE: &str = "E4 Docker";
+
+fn create_about_dialog(message: &str) {
+    let mut wind = Window::default()
+        .with_size(500, 300)
+        .with_label("About");
+
+    // Create TextDisplay for the message
+    let mut text_display = fltk::text::TextDisplay::new(10, 10, 480, 230, "");
+    let mut buff = fltk::text::TextBuffer::default();
+    buff.set_text(message);
+    text_display.set_buffer(buff);
+    text_display.set_scrollbar_size(15);
+    text_display.wrap_mode(fltk::text::WrapMode::AtBounds, 0); // Corretto: usando WrapMode::A
+
+    // Add OK button at the bottom
+    let mut ok_btn = fltk::button::Button::new(200, 250, 100, 30, "OK");
+    ok_btn.set_callback({
+        let mut wind = wind.clone();
+        move |_| wind.hide()
+    });
+
+    wind.make_modal(true);
+    wind.end();
+    wind.show();
+
+    // Run modal window
+    while wind.shown() {
+        app::wait();
+    }
+}
 
 fn main() {
     // Get the package name
@@ -63,10 +93,7 @@ fn main() {
     }
 
     // For the popup menu
-    let mut menu = menu::MenuItem::new(&["Quit"]);
-    let mut menu_label_size: i32 = round(app::screen_size().0 / 100.0, 0) as i32;
-    if menu_label_size < 15 { menu_label_size = 15; };
-    menu.set_label_size(menu_label_size);
+    let menu = menu::MenuItem::new(&["About", "Quit"]);
 
     // Handle tre popup menu and the drag event
     wind.handle({
@@ -78,8 +105,19 @@ fn main() {
                 if app::event_mouse_button() == app::MouseButton::Right {
                     let (ex, ey) = app::event_coords();
                     match menu.popup(ex, ey) {
-                        Some(_val) => {
-                            app::quit();
+                        Some(val) => {
+                            let label = val.label().unwrap();
+                            match label.as_str() {
+                                "About" => {
+                                    create_about_dialog("E4Docker 0.1.0.\nBy Dorian Soru.\n<doriansoru@gmail.com>\nReleased on 2024.");
+                                }
+                                "Quit" => {
+                                    app::quit();
+                                }
+                                _ => {
+                                    println!("{}", label);
+                                }
+                            }
                         },
                         None => {},
                     }
