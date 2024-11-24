@@ -109,13 +109,13 @@ fn main() {
                             let label = val.label().unwrap();
                             match label.as_str() {
                                 "About" => {
-                                    create_about_dialog("E4Docker 0.1.0.\nBy Dorian Soru.\n<doriansoru@gmail.com>\nReleased on 2024.");
+                                    create_about_dialog("E4Docker 0.1.0.\nBy Dorian Soru.\n<doriansoru@gmail.com>\nReleased in 2024.");
                                 }
                                 "Quit" => {
                                     app::quit();
                                 }
                                 _ => {
-                                    println!("{}", label);
+                                    
                                 }
                             }
                         },
