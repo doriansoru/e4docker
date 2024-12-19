@@ -192,7 +192,7 @@ impl E4Button {
     /// Delete the [E4Button].
     pub fn delete(&mut self, config: &mut E4Config) {
         // Delete the button configuration file
-        let mut config_file = self.icon.path().with_extension("");
+        let mut config_file = PathBuf::from(&self.name).with_extension("");
         config_file.set_extension("conf");
         config_file = config.config_dir.join(config_file);
         std::fs::remove_file(&config_file).unwrap();
