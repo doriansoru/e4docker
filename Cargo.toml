@@ -1,6 +1,6 @@
 [package]
 name = "e4docker"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = [ "Dorian Soru <doriansoru@gmail.com>"]
 
@@ -8,5 +8,6 @@ authors = [ "Dorian Soru <doriansoru@gmail.com>"]
 configparser = "3.1.0"
 dirs = "5.0.1"
 fltk  = "^1.4"
-image = "0.25.5"
 round = "0.1.2"
+image = "0.25.5"
+fltk-grid = "0.4.1"

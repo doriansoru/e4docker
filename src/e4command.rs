@@ -3,7 +3,7 @@ use std::{error, process::Command};
 /// A struct which holds a [Command] and its arguments.
 pub struct E4Command {
     cmd: String,
-    args: Vec<String>,
+    arguments: String,
 }
 
 impl E4Command {
@@ -18,33 +18,40 @@ impl E4Command {
     ///
     /// let command = E4Command::new(
     ///     String::from("/usr/bin/nano"),
-    ///     vec![String::from("/tmp/myfile.txt")]);
+    ///     String::from("/tmp/myfile.txt"));
     /// ```
-    pub fn new(cmd: String, args: Vec<String>) -> Self {
-        Self { cmd, args }
+    pub fn new(cmd: String, arguments: String) -> Self {
+        Self { cmd, arguments }
     }
 
     /// Exec the [Command] of the [E4Command]. Return () or the [error::Error].
-    pub fn exec(&self) -> Result<(), Box<dyn error::Error>> {
-        let _ = Command::new(&self.cmd)
-            .args(&self.args)
-            .spawn()?;
+    pub fn exec(&mut self) -> Result<(), Box<dyn error::Error>> {
+        // With arguments
+        if !self.arguments.is_empty() {
+            let _ = Command::new(self.cmd.as_str())
+                .args([self.arguments.as_str()])
+                .spawn()?;
+        } else {
+            let _ = Command::new(self.cmd.as_str())
+                .spawn()?;
+        }
         Ok(())
     }
 
     /// Set the [E4Command] and its args.
-    pub fn set(&mut self, cmd: String, args: Vec<String>) {
+    pub fn set(&mut self, cmd: String, arguments: String) {
         self.cmd = cmd;
-        self.args = args;
+        self.arguments = arguments;
     }
+
+    /// Get the args of the [E4Command].
+    pub fn get_arguments(&self) -> &String {
+        &self.arguments
+    }
+
 
     /// Get the [Command] of the [E4Command].
     pub fn get_cmd(&self) -> &String {
         &self.cmd
-    }
-
-    /// Get the args of the [E4Command].
-    pub fn get_args(&self) -> &Vec<String> {
-        &self.args
     }
 }
