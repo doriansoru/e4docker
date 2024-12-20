@@ -15,6 +15,8 @@ pub struct E4ButtonConfig {
     pub icon_path: String,
 }
 
+
+/// Struct for the common ui between [E4Button::edit] and [E4Button::new_button]
 struct E4ButtonEditUI {
     window: Window,
     name: Input,
@@ -25,6 +27,7 @@ struct E4ButtonEditUI {
 }
 
 impl E4ButtonEditUI {
+    /// Create a ui and return the window, the inputs, the icon button and the save button
     fn new() -> Self {
         let mut window = Window::default()
             .with_size(500, 300);
