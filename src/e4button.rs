@@ -197,8 +197,8 @@ impl E4Button {
         config_file = config.config_dir.join(config_file);
         std::fs::remove_file(&config_file).unwrap();
 
-        // Delete the icon
-        self.icon.delete(&config);
+        // DON'T Delete the icon
+        // self.icon.delete(&config);
 
         // Create a new buttons vec removing the one to be deleted
         let mut buttons = vec![];
