@@ -214,17 +214,13 @@ impl E4Button {
         for (i, button) in old_buttons.iter().enumerate() {
             let button_number = i + 1;
             if *button != self.name {
-                buttons.push(button);
+                buttons.push(button.to_string());
             }
             let key_to_remove = format!("button{}", button_number);
             config.remove_key(crate::e4config::E4DOCKER_BUTTON_SECTION.to_string(), key_to_remove);
         }
         config.set_number_of_buttons(buttons.len() as i32);
-        for (i, button) in buttons.iter().enumerate() {
-            let button_number = i + 1;
-            let button_name = button.to_string();
-            config.set_value(crate::e4config::E4DOCKER_BUTTON_SECTION.to_string(), format!("button{}", button_number), Some(button_name));
-        }
+        config.set_buttons(&buttons);
         crate::e4config::restart_app();
     }
 
