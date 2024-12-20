@@ -15,6 +15,71 @@ pub struct E4ButtonConfig {
     pub icon_path: String,
 }
 
+struct E4ButtonEditUI {
+    window: Window,
+    name: Input,
+    button_icon: Button,
+    command: Input,
+    arguments: Input,
+    save: Button,
+}
+
+impl E4ButtonEditUI {
+    fn new() -> Self {
+        let mut window = Window::default()
+            .with_size(500, 300);
+        let mut grid = fltk_grid::Grid::default().with_size(450, 250).center_of(&window);
+        grid.show_grid(false);
+        grid.set_gap(10, 10);
+        let grid_values = vec!["", "", "", ""];
+        let ncells = grid_values.len() * 2 + 1; // Label and text for each element + ok button
+        let ncols = 2;
+        let nrows = (ncells as f64 / ncols as f64).ceil() as i32;
+        grid.set_layout(nrows, ncols);
+
+        let labels = vec!["Name", "Icon", "Command", "Arguments"];
+
+        // Populates the grid
+        let mut name_label = fltk::frame::Frame::default().with_label(labels[0]);
+        let mut name_input = Input::default();
+        name_input.set_value(grid_values[0]);
+        grid.set_widget(&mut name_label, 0, 0).unwrap();
+        grid.set_widget(&mut name_input, 0, 1).unwrap();
+
+        let mut icon_label = fltk::frame::Frame::default().with_label(labels[1]);
+        let mut button_icon = fltk::button::Button::default();
+
+        grid.set_widget(&mut icon_label, 1, 0).unwrap();
+        grid.set_widget(&mut button_icon, 1, 1).unwrap();
+
+        let mut command_label = fltk::frame::Frame::default().with_label(labels[2]);
+        let mut command_input = Input::default();
+        grid.set_widget(&mut command_label, 2, 0).unwrap();
+        grid.set_widget(&mut command_input, 2, 1).unwrap();
+
+        let mut arguments_label = fltk::frame::Frame::default().with_label(labels[3]);
+        let mut arguments_input = Input::default();
+        grid.set_widget(&mut arguments_label, 3, 0).unwrap();
+        grid.set_widget(&mut arguments_input, 3, 1).unwrap();
+
+        // Add OK button at the bottom
+        let mut save_button = fltk::button::Button::new(200, 250, 100, 30, "Save");
+        grid.set_widget(&mut save_button, 4, 0..2).unwrap();
+
+        window.make_modal(true);
+        window.end();
+
+        Self {
+            window,
+            name: name_input,
+            button_icon: button_icon,
+            command: command_input,
+            arguments: arguments_input,
+            save: save_button,
+        }
+    }
+}
+
 /// A fltk [Button] improved with a [E4Command].
 pub struct E4Button {
     /// The name of the button, corresponding to the .conf file name
@@ -226,47 +291,32 @@ impl E4Button {
 
     /// Edit the [E4Button].
     pub fn edit(&mut self, config: &mut E4Config) {
+        // Create the ui
+        let mut ui = E4ButtonEditUI::new();
         let mut config_file = config.config_dir.join(&self.name);
         config_file.set_extension("conf");
         let tmp_file_path = crate::e4config::get_tmp_file();
         std::fs::copy(config_file.clone(), tmp_file_path).unwrap();
-        let mut wind = Window::default()
-            .with_size(500, 300)
-            .with_label(format!("Edit {}", self.name).as_str());
-        let mut grid = fltk_grid::Grid::default().with_size(450, 250).center_of(&wind);
-        grid.show_grid(false);
-        grid.set_gap(10, 10);
+        ui.window.set_label(format!("Edit {}", self.name).as_str());
         let command = self.command.borrow();
         let icon = self.icon.path().display().to_string();
         let grid_values = vec![&self.name, &icon, command.get_cmd(), command.get_arguments()];
-        let ncells = grid_values.len() * 2 + 1; // Label and text for each element + ok button
-        let ncols = 2;
-        let nrows = (ncells as f64 / ncols as f64).ceil() as i32;
-        grid.set_layout(nrows, ncols);
 
-        let labels = vec!["Name", "Icon", "Command", "Arguments"];
-
-        // Populates the grid
-        let mut name_label = fltk::frame::Frame::default().with_label(labels[0]);
-        let mut name_input = Input::default();
-        name_input.set_value(grid_values[0]);
-        grid.set_widget(&mut name_label, 0, 0).unwrap();
-        grid.set_widget(&mut name_input, 0, 1).unwrap();
-
-        let mut icon_label = fltk::frame::Frame::default().with_label(labels[1]);
+        // Populate the ui
+        ui.name.set_value(grid_values[0]);
         let icon_path = &config.assets_dir.join(self.icon.path());
         let mut image = fltk::image::PngImage::load(&icon_path).unwrap();
         image.scale(self.width, self.height, true, true);
-        let mut button_icon = fltk::button::Button::default().with_size(self.width, self.height);
-        button_icon.set_image(Some(image));
+        ui.button_icon.set_size(self.width, self.height);
+        ui.button_icon.set_image(Some(image));
 
-        // Usa un Rc per condividere lo stato tra il callback e il resto del codice
+        // Use an Rc to share the state between the callback and the rest of the code
         let icon_path = Rc::new(RefCell::new(icon_path.clone()));
         let icon_path_clone = Rc::clone(&icon_path);
 
         let assets_dir = config.assets_dir.clone();
         let (w, h) = (self.width, self.height);
-        button_icon.set_callback(move |b| {
+        ui.button_icon.set_callback(move |b| {
             let mut chooser = fltk::dialog::FileChooser::new(
                 &assets_dir,                    // directory
                 "*.png",                    // filter or pattern
@@ -301,34 +351,22 @@ impl E4Button {
             }
         });
 
-        grid.set_widget(&mut icon_label, 1, 0).unwrap();
-        grid.set_widget(&mut button_icon, 1, 1).unwrap();
+        ui.command.set_value(grid_values[2]);
 
-        let mut command_label = fltk::frame::Frame::default().with_label(labels[2]);
-        let mut command_input = Input::default();
-        command_input.set_value(grid_values[2]);
-        grid.set_widget(&mut command_label, 2, 0).unwrap();
-        grid.set_widget(&mut command_input, 2, 1).unwrap();
-
-        let mut arguments_label = fltk::frame::Frame::default().with_label(labels[3]);
-        let mut arguments_input = Input::default();
-        arguments_input.set_value(command.get_arguments());
-        grid.set_widget(&mut arguments_label, 3, 0).unwrap();
-        grid.set_widget(&mut arguments_input, 3, 1).unwrap();
+        ui.arguments.set_value(command.get_arguments());
 
         // Add OK button at the bottom
-        let mut save_button = fltk::button::Button::new(200, 250, 100, 30, "Save");
         let mut config_clone = config.clone();
         let old_name = self.name.clone();
-        save_button.set_callback({
-            let mut wind = wind.clone();
+        ui.save.set_callback({
+            let mut wind = ui.window.clone();
             move |_| {
                 wind.hide();
                 let tmp_file_path = crate::e4config::get_tmp_file();
                 let mut tmp_config = Ini::new();
                 let _ = tmp_config
                     .load(&tmp_file_path);
-                let name = name_input.value();
+                let name = ui.name.value();
                 if name == GENERIC {
                     let message = "Cannot modify the GENERIC button";
                     fltk::dialog::alert_default(&message);
@@ -336,8 +374,8 @@ impl E4Button {
                 }
                 let mut config_file = config_clone.config_dir.join(name.clone());
                 config_file.set_extension("conf");
-                let command = command_input.value();
-                let arguments = arguments_input.value();
+                let command = ui.command.value();
+                let arguments = ui.arguments.value();
                 tmp_config.set(crate::e4config::BUTTON_BUTTON_SECTION, "command", Some(command));
                 tmp_config.set(crate::e4config::BUTTON_BUTTON_SECTION, "arguments", Some(arguments));
                 tmp_config.write(&tmp_file_path).expect(format!("Cannot save {}", &tmp_file_path.display()).as_str());
@@ -348,68 +386,48 @@ impl E4Button {
                     }
                 }
                 config_clone.set_value(crate::e4config::E4DOCKER_BUTTON_SECTION.to_string(), format!("button{}", n), Some(name));
-                //panic!("Dorian devi modificare e4docker quando cambia il nome!");
                 std::fs::copy(tmp_file_path, &config_file).unwrap();
                 crate::e4config::restart_app();
             }
         });
-        grid.set_widget(&mut save_button, 4, 0..2).unwrap();
 
-        wind.make_modal(true);
-        wind.end();
-        wind.show();
+        ui.window.show();
 
         // Run modal window
-        while wind.shown() {
+        while ui.window.shown() {
             app::wait();
         }
     }
 
     /// Create a new [E4Button] after sibling.
     pub fn new_button(config: &mut E4Config, sibling: &E4Button) {
+        let mut ui = E4ButtonEditUI::new();
         let name = GENERIC;
         let mut config_file = config.config_dir.join(name);
         config_file.set_extension("conf");
         let tmp_file_path = crate::e4config::get_tmp_file();
         std::fs::copy(config_file.clone(), tmp_file_path).unwrap();
         let button_config = Self::read_config(&config, &name.to_string());
-        let mut wind = Window::default()
-            .with_size(500, 300)
-            .with_label(format!("Edit {}", name).as_str());
-        let mut grid = fltk_grid::Grid::default().with_size(450, 250).center_of(&wind);
-        grid.show_grid(false);
-        grid.set_gap(10, 10);
+        ui.window.set_label("New E4Button");
         let command = button_config.command;
         let icon = button_config.icon_path;
         let grid_values = vec![name, &icon, command.get_cmd(), command.get_arguments()];
-        let ncells = 9; // Label and text for each element + ok button
-        let ncols = 2;
-        let nrows = (ncells as f64 / ncols as f64).ceil() as i32;
-        grid.set_layout(nrows, ncols);
 
-        let labels = vec!["Name", "Icon", "Command", "Arguments"];
+        // Populate the ui
+        ui.name.set_value(grid_values[0]);
 
-        // Populates the grid
-        let mut name_label = fltk::frame::Frame::default().with_label(labels[0]);
-        let mut name_input = Input::default();
-        name_input.set_value(grid_values[0]);
-        grid.set_widget(&mut name_label, 0, 0).unwrap();
-        grid.set_widget(&mut name_input, 0, 1).unwrap();
-
-        let mut icon_label = fltk::frame::Frame::default().with_label(labels[1]);
         let icon_path = &mut config.assets_dir.join(GENERIC);
         icon_path.set_extension("png");
         let image = fltk::image::PngImage::load(&icon_path).unwrap();
-        let mut button_icon = fltk::button::Button::default().with_size(image.width(), image.height());
-        button_icon.set_image(Some(image));
+        ui.button_icon.set_image(Some(image));
 
-        // Usa un Rc per condividere lo stato tra il callback e il resto del codice
+        // Use a Rc to share the state between the callback and the rest of the code
         let icon_path = Rc::new(RefCell::new(icon_path.clone()));
         let icon_path_clone = Rc::clone(&icon_path);
 
         let assets_dir = config.assets_dir.clone();
         let (w, h) = (config.icon_width, config.icon_height);
-        button_icon.set_callback(move |b| {
+        ui.button_icon.set_callback(move |b| {
             let mut chooser = fltk::dialog::FileChooser::new(
                 &assets_dir,                    // directory
                 "*.png",                    // filter or pattern
@@ -444,38 +462,26 @@ impl E4Button {
             }
         });
 
-        grid.set_widget(&mut icon_label, 1, 0).unwrap();
-        grid.set_widget(&mut button_icon, 1, 1).unwrap();
+        ui.command.set_value(grid_values[2]);
 
-        let mut command_label = fltk::frame::Frame::default().with_label(labels[2]);
-        let mut command_input = Input::default();
-        command_input.set_value(grid_values[2]);
-        grid.set_widget(&mut command_label, 2, 0).unwrap();
-        grid.set_widget(&mut command_input, 2, 1).unwrap();
-
-        let mut arguments_label = fltk::frame::Frame::default().with_label(labels[3]);
-        let mut arguments_input = Input::default();
-        arguments_input.set_value(command.get_arguments());
-        grid.set_widget(&mut arguments_label, 3, 0).unwrap();
-        grid.set_widget(&mut arguments_input, 3, 1).unwrap();
+        ui.arguments.set_value(command.get_arguments());
 
         let mut config_clone = config.clone();
         // Add OK button at the bottom
-        let mut save_button = fltk::button::Button::new(200, 250, 100, 30, "Save");
         let sibling_name = sibling.name.clone();
-        save_button.set_callback({
-            let mut wind = wind.clone();
+        ui.save.set_callback({
+            let mut wind = ui.window.clone();
             move |_| {
                 wind.hide();
                 let tmp_file_path = crate::e4config::get_tmp_file();
                 let mut tmp_config = Ini::new();
                 let _ = tmp_config
                     .load(&tmp_file_path);
-                let name = name_input.value();
+                let name = ui.name.value();
                 let mut config_file = config_clone.config_dir.join(&name);
                 config_file.set_extension("conf");
-                let command = command_input.value();
-                let arguments = arguments_input.value();
+                let command = ui.command.value();
+                let arguments = ui.arguments.value();
                 tmp_config.set(crate::e4config::BUTTON_BUTTON_SECTION, "command", Some(command));
                 tmp_config.set(crate::e4config::BUTTON_BUTTON_SECTION, "arguments", Some(arguments));
                 tmp_config.write(&tmp_file_path).expect(format!("Cannot save {}", &tmp_file_path.display()).as_str());
@@ -494,14 +500,11 @@ impl E4Button {
                 crate::e4config::restart_app();
             }
         });
-        grid.set_widget(&mut save_button, 4, 0..2).unwrap();
 
-        wind.make_modal(true);
-        wind.end();
-        wind.show();
+        ui.window.show();
 
         // Run modal window
-        while wind.shown() {
+        while ui.window.shown() {
             app::wait();
         }
     }
