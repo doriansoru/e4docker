@@ -4,6 +4,9 @@ use std::{cell::RefCell, path::PathBuf, rc::Rc};
 use crate::{e4command::E4Command, e4config::E4Config, e4icon::E4Icon};
 use round::round;
 
+// The name of a generic E4Button: cannot be deleted
+const GENERIC: &str = "generic";
+
 /// The configuration for a [E4Button].
 pub struct E4ButtonConfig {
     /// The [E4Command] containing the command and the args to exec.
@@ -191,6 +194,11 @@ impl E4Button {
 
     /// Delete the [E4Button].
     pub fn delete(&mut self, config: &mut E4Config) {
+        if self.name == GENERIC {
+            let message = "Cannot delete the GENERIC button";
+            fltk::dialog::alert_default(&message);
+            return;
+        }
         // Delete the button configuration file
         let mut config_file = PathBuf::from(&self.name).with_extension("");
         config_file.set_extension("conf");
@@ -314,7 +322,8 @@ impl E4Button {
 
         // Add OK button at the bottom
         let mut save_button = fltk::button::Button::new(200, 250, 100, 30, "Save");
-        let config_clone = config.clone();
+        let mut config_clone = config.clone();
+        let old_name = self.name.clone();
         save_button.set_callback({
             let mut wind = wind.clone();
             move |_| {
@@ -324,13 +333,26 @@ impl E4Button {
                 let _ = tmp_config
                     .load(&tmp_file_path);
                 let name = name_input.value();
-                let mut config_file = config_clone.config_dir.join(name);
+                if name == GENERIC {
+                    let message = "Cannot modify the GENERIC button";
+                    fltk::dialog::alert_default(&message);
+                    return;
+                }
+                let mut config_file = config_clone.config_dir.join(name.clone());
                 config_file.set_extension("conf");
                 let command = command_input.value();
                 let arguments = arguments_input.value();
                 tmp_config.set(crate::e4config::BUTTON_BUTTON_SECTION, "command", Some(command));
                 tmp_config.set(crate::e4config::BUTTON_BUTTON_SECTION, "arguments", Some(arguments));
                 tmp_config.write(&tmp_file_path).expect(format!("Cannot save {}", &tmp_file_path.display()).as_str());
+                let mut n = 0;
+                for (i, button) in config_clone.buttons.iter().enumerate() {
+                    if *button == old_name {
+                        n = i + 1;
+                    }
+                }
+                config_clone.set_value(crate::e4config::E4DOCKER_BUTTON_SECTION.to_string(), format!("button{}", n), Some(name));
+                //panic!("Dorian devi modificare e4docker quando cambia il nome!");
                 std::fs::copy(tmp_file_path, &config_file).unwrap();
                 crate::e4config::restart_app();
             }
@@ -349,7 +371,7 @@ impl E4Button {
 
     /// Create a new [E4Button] after sibling.
     pub fn new_button(config: &mut E4Config, sibling: &E4Button) {
-        let name = "generic";
+        let name = GENERIC;
         let mut config_file = config.config_dir.join(name);
         config_file.set_extension("conf");
         let tmp_file_path = crate::e4config::get_tmp_file();
@@ -379,7 +401,8 @@ impl E4Button {
         grid.set_widget(&mut name_input, 0, 1).unwrap();
 
         let mut icon_label = fltk::frame::Frame::default().with_label(labels[1]);
-        let icon_path = &config.assets_dir.join("generic.png");
+        let icon_path = &mut config.assets_dir.join(GENERIC);
+        icon_path.set_extension("png");
         let image = fltk::image::PngImage::load(&icon_path).unwrap();
         let mut button_icon = fltk::button::Button::default().with_size(image.width(), image.height());
         button_icon.set_image(Some(image));

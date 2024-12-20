@@ -72,7 +72,6 @@ fn redraw_window(project_config_dir: &Path, wind: &mut Window) -> Vec<E4Button> 
                                     match label.as_str() {
                                         "New" => {
                                             E4Button::new_button(&mut config.borrow_mut(), &button);
-                                            todo!("Dorian devi modificare e4docker.conf per posizionare il pulsante dopo {}", button.name);
                                         },
                                         "Edit" => {
                                             button.edit(&mut config.borrow_mut());
