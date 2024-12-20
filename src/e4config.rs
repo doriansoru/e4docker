@@ -215,7 +215,7 @@ impl E4Config {
     }
 
     /// Save the buttons in config_dir/e4docker.conf.
-    pub fn set_buttons(&mut self, buttons: &Vec<String>) {
+    pub fn save_buttons(&mut self, buttons: &Vec<String>) {
         // Save the buttons
         for (i, button) in buttons.iter().enumerate() {
             let key = format!("button{}", i+1);

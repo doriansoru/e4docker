@@ -1,5 +1,5 @@
 use configparser::ini::Ini;
-use fltk::{app, button::Button, draw, enums::ColorDepth, frame::Frame, prelude::*, window::Window};
+use fltk::{app, button::Button, draw, enums::ColorDepth, frame::Frame, input::Input, prelude::*, window::Window};
 use std::{cell::RefCell, path::PathBuf, rc::Rc};
 use crate::{e4command::E4Command, e4config::E4Config, e4icon::E4Icon};
 use round::round;
@@ -220,7 +220,7 @@ impl E4Button {
             config.remove_key(crate::e4config::E4DOCKER_BUTTON_SECTION.to_string(), key_to_remove);
         }
         config.set_number_of_buttons(buttons.len() as i32);
-        config.set_buttons(&buttons);
+        config.save_buttons(&buttons);
         crate::e4config::restart_app();
     }
 
@@ -248,7 +248,7 @@ impl E4Button {
 
         // Populates the grid
         let mut name_label = fltk::frame::Frame::default().with_label(labels[0]);
-        let mut name_input = fltk::input::Input::default();
+        let mut name_input = Input::default();
         name_input.set_value(grid_values[0]);
         grid.set_widget(&mut name_label, 0, 0).unwrap();
         grid.set_widget(&mut name_input, 0, 1).unwrap();
@@ -305,13 +305,13 @@ impl E4Button {
         grid.set_widget(&mut button_icon, 1, 1).unwrap();
 
         let mut command_label = fltk::frame::Frame::default().with_label(labels[2]);
-        let mut command_input = fltk::input::Input::default();
+        let mut command_input = Input::default();
         command_input.set_value(grid_values[2]);
         grid.set_widget(&mut command_label, 2, 0).unwrap();
         grid.set_widget(&mut command_input, 2, 1).unwrap();
 
         let mut arguments_label = fltk::frame::Frame::default().with_label(labels[3]);
-        let mut arguments_input = fltk::input::Input::default();
+        let mut arguments_input = Input::default();
         arguments_input.set_value(command.get_arguments());
         grid.set_widget(&mut arguments_label, 3, 0).unwrap();
         grid.set_widget(&mut arguments_input, 3, 1).unwrap();
@@ -391,7 +391,7 @@ impl E4Button {
 
         // Populates the grid
         let mut name_label = fltk::frame::Frame::default().with_label(labels[0]);
-        let mut name_input = fltk::input::Input::default();
+        let mut name_input = Input::default();
         name_input.set_value(grid_values[0]);
         grid.set_widget(&mut name_label, 0, 0).unwrap();
         grid.set_widget(&mut name_input, 0, 1).unwrap();
@@ -448,13 +448,13 @@ impl E4Button {
         grid.set_widget(&mut button_icon, 1, 1).unwrap();
 
         let mut command_label = fltk::frame::Frame::default().with_label(labels[2]);
-        let mut command_input = fltk::input::Input::default();
+        let mut command_input = Input::default();
         command_input.set_value(grid_values[2]);
         grid.set_widget(&mut command_label, 2, 0).unwrap();
         grid.set_widget(&mut command_input, 2, 1).unwrap();
 
         let mut arguments_label = fltk::frame::Frame::default().with_label(labels[3]);
-        let mut arguments_input = fltk::input::Input::default();
+        let mut arguments_input = Input::default();
         arguments_input.set_value(command.get_arguments());
         grid.set_widget(&mut arguments_label, 3, 0).unwrap();
         grid.set_widget(&mut arguments_input, 3, 1).unwrap();
@@ -490,7 +490,7 @@ impl E4Button {
                         new_buttons.push(name.to_string());
                     }
                 }
-                config_clone.set_buttons(&new_buttons);
+                config_clone.save_buttons(&new_buttons);
                 crate::e4config::restart_app();
             }
         });
