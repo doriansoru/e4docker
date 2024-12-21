@@ -22,6 +22,7 @@ struct E4ButtonEditUI {
     name: Input,
     button_icon: Button,
     command: Input,
+    command_button: Button,
     arguments: Input,
     save: Button,
 }
@@ -30,14 +31,14 @@ impl E4ButtonEditUI {
     /// Create a ui and return the window, the inputs, the icon button and the save button
     fn new() -> Self {
         let mut window = Window::default()
-            .with_size(500, 300);
-        let mut grid = fltk_grid::Grid::default().with_size(450, 250).center_of(&window);
+            .with_size(700, 300);
+        let mut grid = fltk_grid::Grid::default().with_size(650, 250).center_of(&window);
         grid.show_grid(false);
         grid.set_gap(10, 10);
         let grid_values = ["", "", "", ""];
-        let ncells = grid_values.len() * 2 + 1; // Label and text for each element + ok button
-        let ncols = 2;
-        let nrows = (ncells as f64 / ncols as f64).ceil() as i32;
+        // ncells = 10: Label and text for each value + Browse button + Save button
+        let ncols = 3;
+        let nrows = 5;
         grid.set_layout(nrows, ncols);
 
         let labels = ["Name", "Icon", "Command", "Arguments"];
@@ -47,27 +48,29 @@ impl E4ButtonEditUI {
         let mut name_input = Input::default();
         name_input.set_value(grid_values[0]);
         grid.set_widget(&mut name_label, 0, 0).unwrap();
-        grid.set_widget(&mut name_input, 0, 1).unwrap();
+        grid.set_widget(&mut name_input, 0, 1..3).unwrap();
 
         let mut icon_label = fltk::frame::Frame::default().with_label(labels[1]);
         let mut button_icon = fltk::button::Button::default();
 
         grid.set_widget(&mut icon_label, 1, 0).unwrap();
-        grid.set_widget(&mut button_icon, 1, 1).unwrap();
+        grid.set_widget(&mut button_icon, 1, 1..3).unwrap();
 
         let mut command_label = fltk::frame::Frame::default().with_label(labels[2]);
         let mut command_input = Input::default();
+        let mut command_button = Button::default().with_label("Browse");
         grid.set_widget(&mut command_label, 2, 0).unwrap();
         grid.set_widget(&mut command_input, 2, 1).unwrap();
+        grid.set_widget(&mut command_button, 2, 2).unwrap();
 
         let mut arguments_label = fltk::frame::Frame::default().with_label(labels[3]);
         let mut arguments_input = Input::default();
         grid.set_widget(&mut arguments_label, 3, 0).unwrap();
-        grid.set_widget(&mut arguments_input, 3, 1).unwrap();
+        grid.set_widget(&mut arguments_input, 3, 1..3).unwrap();
 
-        // Add OK button at the bottom
+        // Add Save button at the bottom
         let mut save_button = fltk::button::Button::new(200, 250, 100, 30, "Save");
-        grid.set_widget(&mut save_button, 4, 0..2).unwrap();
+        grid.set_widget(&mut save_button, 4, 0..3).unwrap();
 
         window.make_modal(true);
         window.end();
@@ -77,6 +80,7 @@ impl E4ButtonEditUI {
             name: name_input,
             button_icon,
             command: command_input,
+            command_button,
             arguments: arguments_input,
             save: save_button,
         }
@@ -356,6 +360,32 @@ impl E4Button {
         });
 
         ui.command.set_value(grid_values[2]);
+        let mut command_clone = ui.command.clone();
+        ui.command_button.set_callback(move |_| {
+            // Ottieni la directory corrente
+            let current_dir = std::env::current_dir().ok().unwrap();
+
+            // Risali fino alla radice
+            let mut root_dir = current_dir;
+            while let Some(parent) = root_dir.parent() {
+                root_dir = parent.to_path_buf();
+            }
+
+            let mut chooser = fltk::dialog::FileChooser::new(
+                &root_dir,                    // directory
+                "*",                    // filter or pattern
+                fltk::dialog::FileChooserType::Single, // chooser type
+                "Choose a program",     // title
+            );
+            chooser.show();
+            while chooser.shown() {
+                app::wait();
+            }
+            if chooser.value(1).is_some() {
+                let command_path = chooser.value(1).unwrap();
+                command_clone.set_value(&command_path);
+            }
+        });
 
         ui.arguments.set_value(command.get_arguments());
 
@@ -467,6 +497,32 @@ impl E4Button {
         });
 
         ui.command.set_value(grid_values[2]);
+        let mut command_clone = ui.command.clone();
+        ui.command_button.set_callback(move |_| {
+            // Ottieni la directory corrente
+            let current_dir = std::env::current_dir().ok().unwrap();
+
+            // Risali fino alla radice
+            let mut root_dir = current_dir;
+            while let Some(parent) = root_dir.parent() {
+                root_dir = parent.to_path_buf();
+            }
+
+            let mut chooser = fltk::dialog::FileChooser::new(
+                &root_dir,                    // directory
+                "*",                    // filter or pattern
+                fltk::dialog::FileChooserType::Single, // chooser type
+                "Choose a program",     // title
+            );
+            chooser.show();
+            while chooser.shown() {
+                app::wait();
+            }
+            if chooser.value(1).is_some() {
+                let command_path = chooser.value(1).unwrap();
+                command_clone.set_value(&command_path);
+            }
+        });
 
         ui.arguments.set_value(command.get_arguments());
 

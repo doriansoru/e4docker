@@ -74,7 +74,7 @@ pub fn restart_app() {
         // Start a child process
         let _ = Command::new(&current_exe)
             .spawn()
-            .expect("Failed to restart the program").wait();
+            .expect("Failed to restart the program");
     }
     // End the current process
     std::process::exit(0);
