@@ -135,6 +135,7 @@ pub fn create_buttons(config: &E4Config, wind: &mut Window, frame: &Frame) -> Ve
             &config,
             icon,
         );
+        current_e4button.button.set_tooltip(format!("Click to edit, delete or to create a new button after {}", button_name).as_str());
         // Add the button to the window
         wind.add(&current_e4button.button);
         buttons.push(current_e4button);
