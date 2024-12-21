@@ -34,13 +34,13 @@ impl E4ButtonEditUI {
         let mut grid = fltk_grid::Grid::default().with_size(450, 250).center_of(&window);
         grid.show_grid(false);
         grid.set_gap(10, 10);
-        let grid_values = vec!["", "", "", ""];
+        let grid_values = ["", "", "", ""];
         let ncells = grid_values.len() * 2 + 1; // Label and text for each element + ok button
         let ncols = 2;
         let nrows = (ncells as f64 / ncols as f64).ceil() as i32;
         grid.set_layout(nrows, ncols);
 
-        let labels = vec!["Name", "Icon", "Command", "Arguments"];
+        let labels = ["Name", "Icon", "Command", "Arguments"];
 
         // Populates the grid
         let mut name_label = fltk::frame::Frame::default().with_label(labels[0]);
@@ -75,7 +75,7 @@ impl E4ButtonEditUI {
         Self {
             window,
             name: name_input,
-            button_icon: button_icon,
+            button_icon,
             command: command_input,
             arguments: arguments_input,
             save: save_button,
@@ -114,9 +114,10 @@ pub fn create_buttons(config: &E4Config, wind: &mut Window, frame: &Frame) -> Ve
         (config.window_height as f64 - config.icon_height as f64) / 2.0,
         0,
     ) as i32;
+
     for button_name in &config.buttons {
         // Read the button config
-        let button_config: E4ButtonConfig = E4Button::read_config(config, &button_name);
+        let button_config: E4ButtonConfig = E4Button::read_config(config, button_name);
         // Create the icon
         let icon = E4Icon::new(
             PathBuf::from(button_config.icon_path),
@@ -130,9 +131,9 @@ pub fn create_buttons(config: &E4Config, wind: &mut Window, frame: &Frame) -> Ve
             button_name,
             x,
             y,
-            &frame,
+            frame,
             Rc::clone(&command),
-            &config,
+            config,
             icon,
         );
         current_e4button.button.set_tooltip(format!("Right click to edit, delete or to create a new button after {}", button_name).as_str());
@@ -216,21 +217,20 @@ impl E4Button {
             match result {
                 Ok(_) => (),
                 Err(e) => {
-                    let message = format!("Failed to execute command  {}: {}", command_clone.borrow().get_cmd(), e.to_string());
+                    let message = format!("Failed to execute command  {}: {}", command_clone.borrow().get_cmd(), e);
                     fltk::dialog::alert_default(&message);
                 },
             };
         });
 
-        let button_icon;
         // If the icon path does not exist, search for the icon in the assets directory
-        if !icon.path().exists() {
-            button_icon = image::open(config.assets_dir.join(icon.path()))
-                .unwrap_or_else(|_| panic!("Cannot find {:?}", config.assets_dir.join(icon.path())));
+        let button_icon = if !icon.path().exists() {
+            image::open(config.assets_dir.join(icon.path()))
+                .unwrap_or_else(|_| panic!("Cannot find {:?}", config.assets_dir.join(icon.path())))
         } else {
-            button_icon = image::open(icon.path())
-                .unwrap_or_else(|_| panic!("Cannot find {:?}", config.assets_dir.join(icon.path())));
-        }
+            image::open(icon.path())
+                .unwrap_or_else(|_| panic!("Cannot find {:?}", config.assets_dir.join(icon.path())))
+        };
         let (w, h) = (icon.width(), icon.height());
 
         button.draw(move |_| {
@@ -265,7 +265,7 @@ impl E4Button {
     pub fn delete(&mut self, config: &mut E4Config) {
         if self.name == GENERIC {
             let message = "Cannot delete the GENERIC button";
-            fltk::dialog::alert_default(&message);
+            fltk::dialog::alert_default(message);
             return;
         }
         // Delete the button configuration file
@@ -304,12 +304,12 @@ impl E4Button {
         ui.window.set_label(format!("Edit {}", self.name).as_str());
         let command = self.command.borrow();
         let icon = self.icon.path().display().to_string();
-        let grid_values = vec![&self.name, &icon, command.get_cmd(), command.get_arguments()];
+        let grid_values = [&self.name, &icon, command.get_cmd(), command.get_arguments()];
 
         // Populate the ui
         ui.name.set_value(grid_values[0]);
         let icon_path = &config.assets_dir.join(self.icon.path());
-        let mut image = fltk::image::PngImage::load(&icon_path).unwrap();
+        let mut image = fltk::image::PngImage::load(icon_path).unwrap();
         image.scale(self.width, self.height, true, true);
         ui.button_icon.set_size(self.width, self.height);
         ui.button_icon.set_image(Some(image));
@@ -331,7 +331,7 @@ impl E4Button {
             while chooser.shown() {
                 app::wait();
             }
-            if !chooser.value(1).is_none() {
+            if chooser.value(1).is_some() {
                 let image_path = chooser.value(1).unwrap();
                 let mut new_image = fltk::image::PngImage::load(&image_path).unwrap();
                 new_image.scale(w, h, true, true);
@@ -348,7 +348,7 @@ impl E4Button {
                 match result {
                     Ok(_) => (),
                     Err(e) => {
-                        let message = format!("Cannot load the button config file: {}", e.to_string());
+                        let message = format!("Cannot load the button config file: {}", e);
                         fltk::dialog::alert_default(&message);
                     },
                 };
@@ -373,7 +373,7 @@ impl E4Button {
                 let name = ui.name.value();
                 if name == GENERIC {
                     let message = "Cannot modify the GENERIC button";
-                    fltk::dialog::alert_default(&message);
+                    fltk::dialog::alert_default(message);
                     return;
                 }
                 let mut config_file = config_clone.config_dir.join(name.clone());
@@ -382,7 +382,7 @@ impl E4Button {
                 let arguments = ui.arguments.value();
                 tmp_config.set(crate::e4config::BUTTON_BUTTON_SECTION, "command", Some(command));
                 tmp_config.set(crate::e4config::BUTTON_BUTTON_SECTION, "arguments", Some(arguments));
-                tmp_config.write(&tmp_file_path).expect(format!("Cannot save {}", &tmp_file_path.display()).as_str());
+                tmp_config.write(&tmp_file_path).unwrap_or_else(|_| panic!("Cannot save {}", &tmp_file_path.display()));
                 let mut n = 0;
                 for (i, button) in config_clone.buttons.iter().enumerate() {
                     if *button == old_name {
@@ -411,11 +411,11 @@ impl E4Button {
         config_file.set_extension("conf");
         let tmp_file_path = crate::e4config::get_tmp_file();
         std::fs::copy(config_file.clone(), tmp_file_path).unwrap();
-        let button_config = Self::read_config(&config, &name.to_string());
+        let button_config = Self::read_config(config, &name.to_string());
         ui.window.set_label("New E4Button");
         let command = button_config.command;
         let icon = button_config.icon_path;
-        let grid_values = vec![name, &icon, command.get_cmd(), command.get_arguments()];
+        let grid_values = [name, &icon, command.get_cmd(), command.get_arguments()];
 
         // Populate the ui
         ui.name.set_value(grid_values[0]);
@@ -442,7 +442,7 @@ impl E4Button {
             while chooser.shown() {
                 app::wait();
             }
-            if !chooser.value(1).is_none() {
+            if chooser.value(1).is_some() {
                 let image_path = chooser.value(1).unwrap();
                 let mut new_image = fltk::image::PngImage::load(&image_path).unwrap();
                 new_image.scale(w, h, true, true);
@@ -459,7 +459,7 @@ impl E4Button {
                 match result {
                     Ok(_) => (),
                     Err(e) => {
-                        let message = format!("Cannot load the button config file: {}", e.to_string());
+                        let message = format!("Cannot load the button config file: {}", e);
                         fltk::dialog::alert_default(&message);
                     },
                 };
@@ -488,7 +488,7 @@ impl E4Button {
                 let arguments = ui.arguments.value();
                 tmp_config.set(crate::e4config::BUTTON_BUTTON_SECTION, "command", Some(command));
                 tmp_config.set(crate::e4config::BUTTON_BUTTON_SECTION, "arguments", Some(arguments));
-                tmp_config.write(&tmp_file_path).expect(format!("Cannot save {}", &tmp_file_path.display()).as_str());
+                tmp_config.write(&tmp_file_path).unwrap_or_else(|_| panic!("Cannot save {}", &tmp_file_path.display()));
                 std::fs::copy(tmp_file_path, &config_file).unwrap();
                 // Modify e4docker.conf to put the button after sibling
                 let number_of_buttons = config_clone.get_number_of_buttons() + 1;
@@ -526,7 +526,7 @@ impl E4Button {
         match result {
             Ok(_) => (),
             Err(e) => {
-                let message = format!("Cannot load the button config file: {}", e.to_string());
+                let message = format!("Cannot load the button config file: {}", e);
                 fltk::dialog::alert_default(&message);
             },
         };

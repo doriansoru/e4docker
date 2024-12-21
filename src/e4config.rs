@@ -3,7 +3,6 @@ use std::{env, path::{Path,PathBuf}, process::Command};
 use fltk::{app, prelude::*, window::Window};
 
 /// Sections in the configuration files.
-
 /// e4docker.conf.
 pub const E4DOCKER_DOCKER_SECTION: &str = "E4DOCKER";
 pub const E4DOCKER_BUTTON_SECTION: &str = "BUTTONS";
@@ -70,12 +69,12 @@ pub fn restart_app() {
         let _ = Command::new(&current_exe)
             .args(&args[1..])
             .spawn()
-            .expect("Failed to restart the program");
+            .expect("Failed to restart the program").wait();
     } else {
         // Start a child process
         let _ = Command::new(&current_exe)
             .spawn()
-            .expect("Failed to restart the program");
+            .expect("Failed to restart the program").wait();
     }
     // End the current process
     std::process::exit(0);
@@ -120,7 +119,7 @@ impl E4Config {
         match result {
             Ok(_) => (),
             Err(e) => {
-                let message = format!("Cannot load e4docker.conf: {}", e.to_string());
+                let message = format!("Cannot load e4docker.conf: {}", e);
                 fltk::dialog::alert_default(&message);
             },
         };
@@ -205,17 +204,16 @@ impl E4Config {
         match result {
             Ok(_) => (),
             Err(e) => {
-                let message = format!("Cannot load e4docker.conf: {}", e.to_string());
+                let message = format!("Cannot load e4docker.conf: {}", e);
                 fltk::dialog::alert_default(&message);
             },
         };
         // Get and return the key and the value
-        let value = config.get(&section, &key).unwrap();
-        value
+        config.get(&section, &key).unwrap()
     }
 
     /// Save the buttons in config_dir/e4docker.conf.
-    pub fn save_buttons(&mut self, buttons: &Vec<String>) {
+    pub fn save_buttons(&mut self, buttons: &[String]) {
         // Save the buttons
         for (i, button) in buttons.iter().enumerate() {
             let key = format!("button{}", i+1);
@@ -235,7 +233,7 @@ impl E4Config {
         match result {
             Ok(_) => (),
             Err(e) => {
-                let message = format!("Cannot load e4docker.conf: {}", e.to_string());
+                let message = format!("Cannot load e4docker.conf: {}", e);
                 fltk::dialog::alert_default(&message);
             },
         };
@@ -266,7 +264,7 @@ impl E4Config {
         match result {
             Ok(_) => (),
             Err(e) => {
-                let message = format!("Cannot load e4docker.conf: {}", e.to_string());
+                let message = format!("Cannot load e4docker.conf: {}", e);
                 fltk::dialog::alert_default(&message);
             },
         };

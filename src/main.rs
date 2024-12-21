@@ -14,7 +14,7 @@ const APP_TITLE: &str = "E4 Docker";
 /// Redraw the [app] window.
 fn redraw_window(project_config_dir: &Path, wind: &mut Window) -> Vec<E4Button> {
     // Read the global configuration
-    let config = Rc::new(RefCell::new(E4Config::read(&project_config_dir)));
+    let config = Rc::new(RefCell::new(E4Config::read(project_config_dir)));
     let config_clone = config.clone();
 
     wind.clear();
@@ -40,7 +40,7 @@ fn redraw_window(project_config_dir: &Path, wind: &mut Window) -> Vec<E4Button> 
 
     if cx != 0 {
         //let _ = &wind.set_pos(cx, cy);
-        let _ = wind.set_pos(cx, cy);
+        wind.set_pos(cx, cy);
     }
 
     // Put the buttons in the window
@@ -66,47 +66,41 @@ fn redraw_window(project_config_dir: &Path, wind: &mut Window) -> Vec<E4Button> 
                         if (ex >= button.x && ex <= button.x + button.width) &&
                         (ey >= button.y && ey <= button.y + button.height) && button.button.active() {
                             pressed_on_button = true;
-                            match menu_button.popup(ex, ey) {
-                                Some(val) => {
-                                    let label = val.label().unwrap();
-                                    match label.as_str() {
-                                        "New" => {
-                                            E4Button::new_button(&mut config.borrow_mut(), &button);
-                                        },
-                                        "Edit" => {
-                                            button.edit(&mut config.borrow_mut());
-                                        },
-                                        "Delete" => {
-                                            button.delete(&mut config.borrow_mut());
-                                        },
-                                        _ => {
-
-                                        }
-                                    }
-                                },
-                                None => {},
-                            }
-                        }
-                    }
-                    if !pressed_on_button {
-                        match menu.popup(ex, ey) {
-                            Some(val) => {
+                            if let Some(val) = menu_button.popup(ex, ey) {
                                 let label = val.label().unwrap();
                                 match label.as_str() {
-                                    "About" => {
-                                        let version = env!("CARGO_PKG_VERSION");
-                                        let authors = env!("CARGO_PKG_AUTHORS");
-                                        e4config::create_about_dialog(format!("E4Docker {}.\nBy {}\nReleased in 2024.", version, authors).as_str());
+                                    "New" => {
+                                        E4Button::new_button(&mut config.borrow_mut(), button);
                                     },
-                                    "Quit" => {
-                                        app::quit();
+                                    "Edit" => {
+                                        button.edit(&mut config.borrow_mut());
+                                    },
+                                    "Delete" => {
+                                        button.delete(&mut config.borrow_mut());
                                     },
                                     _ => {
 
                                     }
                                 }
-                            },
-                            None => {},
+                            }
+                        }
+                    }
+                    if !pressed_on_button {
+                        if let Some(val) = menu.popup(ex, ey) {
+                            let label = val.label().unwrap();
+                            match label.as_str() {
+                                "About" => {
+                                    let version = env!("CARGO_PKG_VERSION");
+                                    let authors = env!("CARGO_PKG_AUTHORS");
+                                    e4config::create_about_dialog(format!("E4Docker {}.\nBy {}\nReleased in 2024.", version, authors).as_str());
+                                },
+                                "Quit" => {
+                                    app::quit();
+                                },
+                                _ => {
+
+                                }
+                            }
                         }
                     }
                 } else {
