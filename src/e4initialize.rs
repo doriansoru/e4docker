@@ -81,15 +81,13 @@ command=/usr/bin/generic").expect("Cannot write on generic.conf");
         // Create generic.conf
         let mut file = std::fs::File::create(&e4docker_conf).expect("Cannot create e4docker.conf");
         file.write_all(b"[e4docker]
-number_of_buttons=3
+number_of_buttons=1
 frame_margin=10
 margin_between_buttons=20
 icon_width=32
 icon_height=32
 [buttons]
-button1=generic
-button2=generic
-button3=generic").expect("Cannot write on e4docker.conf");
+button1=generic").expect("Cannot write on e4docker.conf");
     }
 
     project_config_dir
