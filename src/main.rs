@@ -5,9 +5,9 @@
 //! - config: put here your e4docker.conf for the general configuration and a .conf file for each of your favorite apps.
 //! - assets: put here the icons for your favourite apps.
 
-use e4docker::{e4button::E4Button, e4config, e4config::E4Config};
+use e4docker::{e4button::E4Button, e4config, e4config::E4Config, e4initialize};
 use fltk::{app, enums, enums::FrameType, frame::Frame, menu, prelude::*,window::Window};
-use std::{cell::RefCell, env, fs, path::Path, rc::Rc};
+use std::{cell::RefCell, env, path::Path, rc::Rc};
 
 const APP_TITLE: &str = "E4 Docker";
 
@@ -124,18 +124,8 @@ fn redraw_window(project_config_dir: &Path, wind: &mut Window) -> Vec<E4Button> 
 }
 
 fn main() {
-    // Get the package name
-    let package_name = env!("CARGO_PKG_NAME");
-
-    // Get the user config dir
-    let config_dir = dirs::config_dir().expect("Cannot find your config dir.");
-    // Create the path of the configuration directory for this app
-    let project_config_dir = config_dir.join(package_name);
-    // Create this app configuration directory if it does not exist
-    if !project_config_dir.exists() {
-        fs::create_dir_all(&project_config_dir)
-            .expect("Cannot create the project config directory.");
-    }
+    // Get (or create) the path of the configuration directory for this app
+    let project_config_dir = e4initialize::get_package_config_dir();
 
     // Create a FLTK app
     let app = app::App::default();

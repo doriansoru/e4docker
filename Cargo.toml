@@ -11,3 +11,12 @@ fltk  = "^1.4"
 round = "0.1.2"
 image = "0.25.5"
 fltk-grid = "0.4.1"
+base64 = "0.22.1"
+
+# Added to hide a terminal on Windows
+[target.'cfg(windows)'.build-dependencies]
+winres = "0.1"
+
+[[bin]]
+name = "e4docker"
+windows_subsystem = "windows"

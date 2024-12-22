@@ -1,6 +1,7 @@
 use configparser::ini::Ini;
 use std::{env, path::{Path,PathBuf}, process::Command};
 use fltk::{app, prelude::*, window::Window};
+use crate::e4initialize;
 
 /// Sections in the configuration files.
 /// e4docker.conf.
@@ -180,7 +181,7 @@ impl E4Config {
         Self {
             config_dir: config_dir.to_path_buf(),
             buttons,
-            assets_dir: config_dir.join("assets"),
+            assets_dir: e4initialize::get_package_assets_dir(),
             margin_between_buttons,
             frame_margin,
             window_width,

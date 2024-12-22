@@ -9,3 +9,6 @@ pub mod e4icon;
 
 /// This module manages a button.
 pub mod e4button;
+
+/// To create a generic button
+pub mod e4initialize;
