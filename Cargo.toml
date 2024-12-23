@@ -12,3 +12,9 @@ round = "0.1.2"
 image = "0.25.5"
 fltk-grid = "0.4.1"
 base64 = "0.22.1"
+
+[package.metadata.winres]
+OriginalFilename = "e4docker.exe"
+LegalCopyright = "Copyright 2024, Dorian Soru"
+FileDescription = "A simple docker for your favorite apps, written in Rust"
+ProductName = "E4Docker"
