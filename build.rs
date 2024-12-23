@@ -25,14 +25,7 @@ fn main() {
             .status()
             .unwrap();
 
-        // Verify that icon.res has been created
-        /*if dest_path.exists() {
-            println!("cargo:warning=icon.res created successfully at {}", dest_path_str);
-        } else {
-            panic!("icon.res was not created at {}", dest_path_str);
-        }*/
-
-        // Passa il percorso del file `icon.res` senza il prefisso `/WIN32RES:`
+        // Add the icon.res path
         println!("cargo:rustc-link-arg={}", dest_path.canonicalize().unwrap().display());
     }
 }
