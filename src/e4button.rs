@@ -1,8 +1,9 @@
 use configparser::ini::Ini;
-use fltk::{app, button::Button, draw, enums::ColorDepth, frame::Frame, input::Input, prelude::*, window::Window};
-use std::{cell::RefCell, path::PathBuf, rc::Rc};
 use crate::{e4command::E4Command, e4config::E4Config, e4icon::E4Icon};
+use fltk::{app, button::Button, frame::Frame, input::Input, prelude::*, window::Window};
+use image::ImageReader;
 use round::round;
+use std::{cell::RefCell, path::PathBuf, rc::Rc};
 
 // The name of a generic E4Button: cannot be deleted
 const GENERIC: &str = "generic";
@@ -166,6 +167,17 @@ impl std::clone::Clone for E4Button {
 }
 
 impl E4Button {
+    fn get_fltk_image(image_path: &PathBuf) -> Result<fltk::image::PngImage, image::ImageError> {
+        let new_image = ImageReader::open(image_path)?.decode()?;
+        let png_bytes: Vec<u8> = vec![];
+        let mut cursor = std::io::Cursor::new(png_bytes);
+        new_image.write_to(&mut cursor, image::ImageFormat::Png)?;
+        let png_data = cursor.into_inner();
+
+        let fltk_image = fltk::image::PngImage::from_data(&png_data).unwrap();
+        Ok(fltk_image)
+    }
+
     /// Create a new [E4Button].
     ///
     /// # Example
@@ -229,25 +241,15 @@ impl E4Button {
 
         // If the icon path does not exist, search for the icon in the assets directory
         let button_icon = if !icon.path().exists() {
-            image::open(config.assets_dir.join(icon.path()))
+            Self::get_fltk_image(&config.assets_dir.join(icon.path()))
                 .unwrap_or_else(|_| panic!("Cannot find {:?}", config.assets_dir.join(icon.path())))
         } else {
-            image::open(icon.path())
+            Self::get_fltk_image(icon.path())
                 .unwrap_or_else(|_| panic!("Cannot find {:?}", config.assets_dir.join(icon.path())))
         };
         let (w, h) = (icon.width(), icon.height());
 
-        button.draw(move |_| {
-            draw::draw_image(
-                &button_icon.to_rgba8(),
-                x,
-                y,
-                w,
-                h,
-                ColorDepth::Rgba8,
-            )
-            .unwrap();
-        });
+        button.set_image(Some(button_icon));
         E4Button {
             name: name.to_string(),
             x,
@@ -313,9 +315,10 @@ impl E4Button {
         // Populate the ui
         ui.name.set_value(grid_values[0]);
         let icon_path = &config.assets_dir.join(self.icon.path());
-        let mut image = fltk::image::PngImage::load(icon_path).unwrap();
+        let mut image = Self::get_fltk_image(icon_path).unwrap();
         image.scale(self.width, self.height, true, true);
         ui.button_icon.set_size(self.width, self.height);
+
         ui.button_icon.set_image(Some(image));
 
         // Use an Rc to share the state between the callback and the rest of the code
@@ -337,7 +340,14 @@ impl E4Button {
             }
             if chooser.value(1).is_some() {
                 let image_path = chooser.value(1).unwrap();
-                let mut new_image = fltk::image::PngImage::load(&image_path).unwrap();
+                let mut new_image = match Self::get_fltk_image(&PathBuf::from(&image_path)) {
+                    Ok(img) => img,
+                    Err(e) => {
+                        let message = format!("Cannot load the image: {}", e);
+                        fltk::dialog::alert_default(&message);
+                        Self::get_fltk_image(&icon_path_clone.borrow_mut()).unwrap()
+                    }
+                };
                 new_image.scale(w, h, true, true);
                 b.set_image(Some(new_image));
                 *icon_path_clone.borrow_mut() = std::path::PathBuf::from(&image_path);
@@ -452,7 +462,7 @@ impl E4Button {
 
         let icon_path = &mut config.assets_dir.join(GENERIC);
         icon_path.set_extension("png");
-        let image = fltk::image::PngImage::load(&icon_path).unwrap();
+        let image = Self::get_fltk_image(icon_path).unwrap();
         ui.button_icon.set_image(Some(image));
 
         // Use a Rc to share the state between the callback and the rest of the code
@@ -474,7 +484,15 @@ impl E4Button {
             }
             if chooser.value(1).is_some() {
                 let image_path = chooser.value(1).unwrap();
-                let mut new_image = fltk::image::PngImage::load(&image_path).unwrap();
+                let mut new_image = match Self::get_fltk_image(&PathBuf::from(&image_path)) {
+                    Ok(img) => img,
+                    Err(e) => {
+                        let message = format!("Cannot load the image: {}", e);
+                        fltk::dialog::alert_default(&message);
+                        Self::get_fltk_image(&icon_path_clone.borrow_mut()).unwrap()
+                    }
+                };
+
                 new_image.scale(w, h, true, true);
                 b.set_image(Some(new_image));
                 *icon_path_clone.borrow_mut() = std::path::PathBuf::from(&image_path);

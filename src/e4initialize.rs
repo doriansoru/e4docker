@@ -25,7 +25,7 @@ pub fn create_generic_button(destination: &std::path::Path) -> bool {
     let bytes = general_purpose::STANDARD.decode(img64).unwrap();
 
     // Create a file on destination
-    let mut file = std::fs::File::create(&destination).unwrap();
+    let mut file = std::fs::File::create(destination).unwrap();
 
     // Write the bytes on file
     file.write_all(&bytes).unwrap();
@@ -56,10 +56,8 @@ pub fn get_package_config_dir() -> PathBuf {
     // Generic button png file
     let mut generic_png =  assets_dir.join("generic");
     generic_png.set_extension("png");
-    if !generic_png.exists() {
-        if !create_generic_button(&generic_png) {
-            panic!("Cannot create {}", generic_png.display());
-        }
+    if !generic_png.exists() && !create_generic_button(&generic_png) {
+        panic!("Cannot create {}", generic_png.display());
     }
 
     // Generic button conf file

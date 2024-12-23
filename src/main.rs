@@ -1,3 +1,4 @@
+#![windows_subsystem = "windows"]
 //! E4Docker - A simple docker for your favorite apps.
 //!
 //! Provided an docker for your favorite apps.
