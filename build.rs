@@ -9,10 +9,10 @@ fn main() {
         let out_dir = env::var("OUT_DIR").unwrap();
         let dest_path = Path::new(&out_dir).join("icon.res");
 
-        // Assicurati che il percorso del file `icon.rc` sia corretto
+        // icon.rc
         let icon_rc_path = Path::new("icon.rc");
 
-        // Converte il percorso in una stringa
+        // Convert the path to a string
         let icon_rc_str = icon_rc_path.to_str().unwrap();
         let dest_path_str = dest_path.to_str().unwrap();
 
@@ -25,7 +25,7 @@ fn main() {
             .status()
             .unwrap();
 
-        // Verifica che il file `icon.res` sia stato creato
+        // Verify that icon.res has been created
         /*if dest_path.exists() {
             println!("cargo:warning=icon.res created successfully at {}", dest_path_str);
         } else {
