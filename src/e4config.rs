@@ -70,7 +70,7 @@ pub fn restart_app() {
         let _ = Command::new(&current_exe)
             .args(&args[1..])
             .spawn()
-            .expect("Failed to restart the program").wait();
+            .expect("Failed to restart the program");
     } else {
         // Start a child process
         let _ = Command::new(&current_exe)

@@ -21,7 +21,7 @@ fn main() {
         println!("cargo:warning=ICON_RC_PATH: {}", icon_rc_str);*/
 
         Command::new("x86_64-w64-mingw32-windres")
-            .args(&[icon_rc_str, "-O", "coff", "-o", dest_path_str])
+            .args([icon_rc_str, "-O", "coff", "-o", dest_path_str])
             .status()
             .unwrap();
 
