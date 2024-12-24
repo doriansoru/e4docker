@@ -2,8 +2,11 @@ use configparser::ini::Ini;
 use crate::{e4command::E4Command, e4config::E4Config, e4icon::E4Icon};
 use fltk::{app, button::Button, frame::Frame, input::Input, prelude::*, window::Window};
 use image::ImageReader;
+use pelite::FileMap;
+use pelite::pe64::{Pe, PeFile};
+use pelite::resources::Name;
 use round::round;
-use std::{cell::RefCell, path::PathBuf, rc::Rc};
+use std::{cell::RefCell, io::Cursor, path::PathBuf, rc::Rc};
 
 // The name of a generic E4Button: cannot be deleted
 const GENERIC: &str = "generic";
@@ -167,13 +170,42 @@ impl std::clone::Clone for E4Button {
 }
 
 impl E4Button {
+    /// Transform the image to a fltk PngImage
     fn get_fltk_image(image_path: &PathBuf) -> Result<fltk::image::PngImage, image::ImageError> {
-        let new_image = ImageReader::open(image_path)?.decode()?;
-        let png_bytes: Vec<u8> = vec![];
-        let mut cursor = std::io::Cursor::new(png_bytes);
-        new_image.write_to(&mut cursor, image::ImageFormat::Png)?;
-        let png_data = cursor.into_inner();
+        let image_extension = &image_path
+            .extension()
+            .and_then(std::ffi::OsStr::to_str).unwrap().to_lowercase();
+        let png_data = if image_extension != "exe" {
+            let new_image = ImageReader::open(image_path)?.decode()?;
+            let png_bytes: Vec<u8> = vec![];
+            let mut cursor = Cursor::new(png_bytes);
+            new_image.write_to(&mut cursor, image::ImageFormat::Png)?;
+            cursor.into_inner()
+        } else {
+            // Open and map the exe file
+            let file_map = FileMap::open(image_path).unwrap();
+            let pe = PeFile::from_bytes(&file_map).unwrap();
 
+            // Get resources
+            let resources = pe.resources().unwrap();
+
+            // RT_ICON as Name::Id
+            let icon = Name::Id(3);         // RT_ICON
+
+            // Get the first icon
+            let icon_data = resources.find_resource(&[icon, Name::Id(1)]).unwrap();
+
+            // Convert icon raw data to an image
+            let img = image::load_from_memory(icon_data).unwrap();
+
+            // Prepare the buffer for the PNG
+            let png_bytes: Vec<u8> = vec![];
+            let mut cursor = Cursor::new(png_bytes);
+
+            // Write the image as PNG
+            img.write_to(&mut cursor, image::ImageFormat::Png)?;
+            cursor.into_inner()
+        };
         let fltk_image = fltk::image::PngImage::from_data(&png_data).unwrap();
         Ok(fltk_image)
     }
