@@ -240,7 +240,7 @@ impl E4Button {
         });
 
         // If the icon path does not exist, search for the icon in the assets directory
-        let button_icon = if !icon.path().exists() {
+        let mut button_icon = if !icon.path().exists() {
             Self::get_fltk_image(&config.assets_dir.join(icon.path()))
                 .unwrap_or_else(|_| panic!("Cannot find {:?}", config.assets_dir.join(icon.path())))
         } else {
@@ -249,6 +249,7 @@ impl E4Button {
         };
         let (w, h) = (icon.width(), icon.height());
 
+        button_icon.scale(w, h, true, true);
         button.set_image(Some(button_icon));
         E4Button {
             name: name.to_string(),
