@@ -8,18 +8,27 @@
 
 use e4docker::{e4button::E4Button, e4config, e4config::E4Config, e4initialize};
 use fltk::{app, enums, enums::FrameType, frame::Frame, menu, prelude::*,window::Window};
+use round::round;
 use std::{cell::RefCell, env, path::Path, rc::Rc};
 
 const APP_TITLE: &str = "E4 Docker";
+
+fn about() {
+    let version = env!("CARGO_PKG_VERSION");
+    let authors = env!("CARGO_PKG_AUTHORS");
+    e4config::create_about_dialog(format!("E4Docker {}.\nBy {}\nReleased in 2024.", version, authors).as_str());
+}
 
 /// Redraw the [app] window.
 fn redraw_window(project_config_dir: &Path, wind: &mut Window) -> Vec<E4Button> {
     // Read the global configuration
     let config = Rc::new(RefCell::new(E4Config::read(project_config_dir)));
     let config_clone = config.clone();
+    let config_other_clone = config.clone();
 
+    let menu_height = round(config.borrow().window_height as f64 / 4.0, 0) as i32;
     wind.clear();
-    wind.set_size(config.borrow().window_width, config.borrow().window_height);
+    wind.set_size(config.borrow().window_width, config.borrow().window_height + 3 * menu_height);
     // Create a frame
     let mut frame = Frame::default()
         .with_size(
@@ -30,10 +39,38 @@ fn redraw_window(project_config_dir: &Path, wind: &mut Window) -> Vec<E4Button> 
         .center_of(wind)
         .with_label("");
     frame.set_frame(FrameType::EngravedBox);
+    // Move the frame down to let space for the MenuBar
+    frame.set_pos(frame.x(), frame.y() + menu_height);
     // Remove the border
     wind.set_border(false);
+
+    // Put the buttons in the window
+    let buttons = e4docker::e4button::create_buttons(&config.borrow(), wind, &frame);
+
+    // For the menu bar
+    let mut menubar = menu::MenuBar::default().with_size(config.borrow().window_width, menu_height);
+    menubar.set_pos(menubar.x(), menubar.y() + round::round(menu_height as f64 / 2.0, 0) as i32);
+    menubar.set_frame(FrameType::FlatBox);
+    menubar.add(
+        "&File/About...\t",
+        enums::Shortcut::Ctrl | 'a',
+        menu::MenuFlag::Normal,
+            |_| {
+                about();
+        },
+    );
+    menubar.add(
+        "&File/Quit\t",
+        enums::Shortcut::Ctrl | 'q',
+        menu::MenuFlag::Normal,
+            |_| {
+                app::quit();
+        },
+    );
+
     wind.end();
     wind.show();
+
     // Always on top
     wind.set_on_top();
     let cx: i32 = config.borrow().x;
@@ -44,11 +81,9 @@ fn redraw_window(project_config_dir: &Path, wind: &mut Window) -> Vec<E4Button> 
         wind.set_pos(cx, cy);
     }
 
-    // Put the buttons in the window
-    let buttons = e4docker::e4button::create_buttons(&config.borrow(), wind, &frame);
-
     // For the popup menu
     let menu = menu::MenuItem::new(&["About", "Quit"]);
+    let menu_clone = menu.clone();
     let menu_button = menu::MenuItem::new(&["New", "Edit", "Delete"]);
 
     let mut buttons_clone = buttons.clone();
@@ -91,9 +126,7 @@ fn redraw_window(project_config_dir: &Path, wind: &mut Window) -> Vec<E4Button> 
                             let label = val.label().unwrap();
                             match label.as_str() {
                                 "About" => {
-                                    let version = env!("CARGO_PKG_VERSION");
-                                    let authors = env!("CARGO_PKG_AUTHORS");
-                                    e4config::create_about_dialog(format!("E4Docker {}.\nBy {}\nReleased in 2024.", version, authors).as_str());
+                                    about();
                                 },
                                 "Quit" => {
                                     app::quit();
@@ -121,6 +154,47 @@ fn redraw_window(project_config_dir: &Path, wind: &mut Window) -> Vec<E4Button> 
             _ => false,
         }
     });
+
+    let mut wind_clone = wind.clone();
+    menubar.handle({
+        let mut x = 0;
+        let mut y = 0;
+        move |_, ev| match ev {
+            enums::Event::Push => {
+                // Handle the popup menu
+                if app::event_mouse_button() == app::MouseButton::Right {
+                    let (ex, ey) = app::event_coords();
+                    if let Some(val) = menu_clone.popup(ex, ey) {
+                        let label = val.label().unwrap();
+                        match label.as_str() {
+                            "About" => {
+                                about();
+                            },
+                            "Quit" => {
+                                app::quit();
+                            },
+                            _ => {
+                            }
+                        }
+                    }
+                } else {
+                    let coords = app::event_coords();
+                    x = coords.0;
+                    y = coords.1;
+                }
+                true
+            },
+            // Handle the drag event
+            enums::Event::Drag => {
+                config_other_clone.borrow_mut().set_value(e4config::E4DOCKER_DOCKER_SECTION.to_string(), "x".to_string(), Some((app::event_x_root() - x).to_string()));
+                config_other_clone.borrow_mut().set_value(e4config::E4DOCKER_DOCKER_SECTION.to_string(), "y".to_string(), Some((app::event_y_root() - y).to_string()));
+                wind_clone.set_pos(app::event_x_root() - x, app::event_y_root() - y);
+                true
+            }
+            _ => false,
+        }
+    });
+
     buttons
 }
 

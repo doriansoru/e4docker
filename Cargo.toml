@@ -1,20 +1,20 @@
 [package]
 name = "e4docker"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2021"
 authors = [ "Dorian Soru <doriansoru@gmail.com>"]
 license = "GPL-3.0"
 description = "A simple docker for your favorite apps, written in Rust"
 
 [dependencies]
-configparser = "3.1.0"
-dirs = "5.0.1"
+configparser = "3"
+dirs = "5"
 fltk  = "^1.4"
-round = "0.1.2"
-image = "0.25.5"
-fltk-grid = "0.4.1"
-base64 = "0.22.1"
-pelite = "0.10.0"
+round = "0.1"
+image = "0.25"
+fltk-grid = "0.4"
+base64 = "0.22"
+pelite = "0.10"
 
 [package.metadata.winres]
 OriginalFilename = "e4docker.exe"
