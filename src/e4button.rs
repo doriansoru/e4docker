@@ -250,7 +250,7 @@ impl E4Button {
                 }
             }
         };
-        let fltk_image = if png_data.len() > 0 {
+        let fltk_image = if !png_data.is_empty() {
             fltk::image::PngImage::from_data(&png_data).unwrap()
         } else {
             let new_image = ImageReader::open(crate::e4initialize::get_generic_icon())?.decode()?;
@@ -259,7 +259,7 @@ impl E4Button {
             new_image.write_to(&mut cursor, image::ImageFormat::Png)?;
             let png_data = cursor.into_inner();
             fltk::image::PngImage::from_data(&png_data).unwrap()
-        };  
+        };
         Ok(fltk_image)
     }
 
