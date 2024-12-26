@@ -94,3 +94,7 @@ button1=generic").expect("Cannot write on e4docker.conf");
 pub fn get_package_assets_dir() -> PathBuf {
     get_package_config_dir().join("assets")
 }
+
+pub fn get_generic_icon() -> PathBuf {
+    get_package_assets_dir().join("generic.png")
+}

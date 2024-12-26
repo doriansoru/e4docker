@@ -184,52 +184,82 @@ impl E4Button {
             cursor.into_inner()
         } else {
             // Open and map the exe file
-            let file_map = FileMap::open(image_path).unwrap();
+            match FileMap::open(image_path) {
+                Ok(file_map) => {
+                    // Try as PE32
+                    match PeFile32::from_bytes(&file_map) {
+                        Ok(pe32) => {
+                            let resources = pe32.resources().unwrap();
+                            // RT_ICON as Name::Id
+                            let icon = Name::Id(3);         // RT_ICON
 
-            // Try as PE32
-            match PeFile32::from_bytes(&file_map) {
-                Ok(pe32) => {
-                    let resources = pe32.resources().unwrap();
-                    // RT_ICON as Name::Id
-                    let icon = Name::Id(3);         // RT_ICON
+                            // Get the first icon
+                            let icon_data = resources.find_resource(&[icon, Name::Id(1)]).unwrap();
 
-                    // Get the first icon
-                    let icon_data = resources.find_resource(&[icon, Name::Id(1)]).unwrap();
+                            // Convert icon raw data to an image
+                            let img = image::load_from_memory(icon_data).unwrap();
 
-                    // Convert icon raw data to an image
-                    let img = image::load_from_memory(icon_data).unwrap();
+                            // Prepare the buffer for the PNG
+                            let png_bytes: Vec<u8> = vec![];
+                            let mut cursor = Cursor::new(png_bytes);
 
-                    // Prepare the buffer for the PNG
-                    let png_bytes: Vec<u8> = vec![];
-                    let mut cursor = Cursor::new(png_bytes);
+                            // Write the image as PNG
+                            img.write_to(&mut cursor, image::ImageFormat::Png).unwrap();
+                            cursor.into_inner()
+                        },
+                        Err(_) => {
+                            // If PE32 fails, try as PE64
+                            match PeFile64::from_bytes(&file_map) {
+                                Ok(pe64) => {
+                                    let resources = pe64.resources().unwrap();
+                                    // RT_ICON as Name::Id
+                                    let icon = Name::Id(3);         // RT_ICON
 
-                    // Write the image as PNG
-                    img.write_to(&mut cursor, image::ImageFormat::Png).unwrap();
-                    cursor.into_inner()
+                                    // Get the first icon
+                                    let icon_data = resources.find_resource(&[icon, Name::Id(1)]).unwrap();
+
+                                    // Convert icon raw data to an image
+                                    let img = image::load_from_memory(icon_data).unwrap();
+
+                                    // Prepare the buffer for the PNG
+                                    let png_bytes: Vec<u8> = vec![];
+                                    let mut cursor = Cursor::new(png_bytes);
+
+                                    // Write the image as PNG
+                                    img.write_to(&mut cursor, image::ImageFormat::Png).unwrap();
+                                    cursor.into_inner()
+                                },
+                                Err(e) => {
+                                    // Cannot open the exe file. Return the generic icon
+                                    let message = format!("Error in opening {}: {}", image_path.display(), e);
+                                    fltk::dialog::alert_default(&message);
+                                    let new_image = ImageReader::open(crate::e4initialize::get_generic_icon())?.decode()?;
+                                    let png_bytes: Vec<u8> = vec![];
+                                    let mut cursor = Cursor::new(png_bytes);
+                                    new_image.write_to(&mut cursor, image::ImageFormat::Png)?;
+                                    cursor.into_inner()
+                                }
+                            }
+                        }
+                    }
                 },
-                Err(_) => {
-                    // If PE32 fails, try as PE64
-                    let pe64 = PeFile64::from_bytes(&file_map).unwrap();
-                    let resources = pe64.resources().unwrap();
-                    // RT_ICON as Name::Id
-                    let icon = Name::Id(3);         // RT_ICON
-
-                    // Get the first icon
-                    let icon_data = resources.find_resource(&[icon, Name::Id(1)]).unwrap();
-
-                    // Convert icon raw data to an image
-                    let img = image::load_from_memory(icon_data).unwrap();
-
-                    // Prepare the buffer for the PNG
-                    let png_bytes: Vec<u8> = vec![];
-                    let mut cursor = Cursor::new(png_bytes);
-
-                    // Write the image as PNG
-                    img.write_to(&mut cursor, image::ImageFormat::Png).unwrap();
-                    cursor.into_inner()                }
+                Err(e) => {
+                    let message = format!("Error in opening {}: {}", image_path.display(), e);
+                    fltk::dialog::alert_default(&message);
+                    vec![]
+                }
             }
         };
-        let fltk_image = fltk::image::PngImage::from_data(&png_data).unwrap();
+        let fltk_image = if png_data.len() > 0 {
+            fltk::image::PngImage::from_data(&png_data).unwrap()
+        } else {
+            let new_image = ImageReader::open(crate::e4initialize::get_generic_icon())?.decode()?;
+            let png_bytes: Vec<u8> = vec![];
+            let mut cursor = Cursor::new(png_bytes);
+            new_image.write_to(&mut cursor, image::ImageFormat::Png)?;
+            let png_data = cursor.into_inner();
+            fltk::image::PngImage::from_data(&png_data).unwrap()
+        };  
         Ok(fltk_image)
     }
 
