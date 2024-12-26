@@ -26,9 +26,9 @@ fn redraw_window(project_config_dir: &Path, wind: &mut Window) -> Vec<E4Button> 
     let config_clone = config.clone();
     let config_other_clone = config.clone();
 
-    let menu_height = round(config.borrow().window_height as f64 / 4.0, 0) as i32;
+    let menu_height = round(config.borrow().window_height as f64 / 3.0, 0) as i32;
     wind.clear();
-    wind.set_size(config.borrow().window_width, config.borrow().window_height + 3 * menu_height);
+    wind.set_size(config.borrow().window_width, config.borrow().window_height + 2 * menu_height);
     // Create a frame
     let mut frame = Frame::default()
         .with_size(
@@ -49,7 +49,7 @@ fn redraw_window(project_config_dir: &Path, wind: &mut Window) -> Vec<E4Button> 
 
     // For the menu bar
     let mut menubar = menu::MenuBar::default().with_size(config.borrow().window_width, menu_height);
-    menubar.set_pos(menubar.x(), menubar.y() + round::round(menu_height as f64 / 2.0, 0) as i32);
+    menubar.set_color(fltk::enums::Color::from_u32(0xe8dcca));
     menubar.set_frame(FrameType::FlatBox);
     menubar.add(
         "&File/About...\t",
