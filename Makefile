@@ -11,13 +11,14 @@ ASSETS_DIR = assets
 INSTALL_DIR = /usr/bin
 CONFIG_INSTALL_DIR = $(HOME)/.config/$(PROJECT_NAME)
 ASSETS_INSTALL_DIR = $(CONFIG_INSTALL_DIR)/assets
+NPROCS:=$(shell grep -c ^processor /proc/cpuinfo)
 
 # Default rule
 all: linux debian windows
 
 # Build the project for linux
 linux:
-	cargo build --release
+	cargo build -j $(NPROCS) --release
 
 # Build the debian package
 debian:
@@ -25,7 +26,7 @@ debian:
 
 # Build the windows exe
 windows:
-	cargo build --release --target x86_64-pc-windows-gnu
+	cargo build -j $(NPROCS) --release --target x86_64-pc-windows-gnu
 
 # Install the project
 install: linux
