@@ -34,7 +34,7 @@ struct E4ButtonEditUI {
 
 impl E4ButtonEditUI {
     /// Create a ui and return the window, the inputs, the icon button and the save button
-    fn new() -> Self {
+    fn new() -> Result<Self, Box<dyn std::error::Error>> {
         let mut window = Window::default()
             .with_size(700, 300);
         let mut grid = fltk_grid::Grid::default().with_size(650, 250).center_of(&window);
@@ -52,43 +52,45 @@ impl E4ButtonEditUI {
         let mut name_label = fltk::frame::Frame::default().with_label(labels[0]);
         let mut name_input = Input::default();
         name_input.set_value(grid_values[0]);
-        grid.set_widget(&mut name_label, 0, 0).unwrap();
-        grid.set_widget(&mut name_input, 0, 1..3).unwrap();
+        grid.set_widget(&mut name_label, 0, 0)?;
+        grid.set_widget(&mut name_input, 0, 1..3)?;
 
         let mut icon_label = fltk::frame::Frame::default().with_label(labels[1]);
         let mut button_icon = fltk::button::Button::default();
 
-        grid.set_widget(&mut icon_label, 1, 0).unwrap();
-        grid.set_widget(&mut button_icon, 1, 1..3).unwrap();
+        grid.set_widget(&mut icon_label, 1, 0)?;
+        grid.set_widget(&mut button_icon, 1, 1..3)?;
 
         let mut command_label = fltk::frame::Frame::default().with_label(labels[2]);
         let mut command_input = Input::default();
         let mut command_button = Button::default().with_label("Browse");
-        grid.set_widget(&mut command_label, 2, 0).unwrap();
-        grid.set_widget(&mut command_input, 2, 1).unwrap();
-        grid.set_widget(&mut command_button, 2, 2).unwrap();
+        grid.set_widget(&mut command_label, 2, 0)?;
+        grid.set_widget(&mut command_input, 2, 1)?;
+        grid.set_widget(&mut command_button, 2, 2)?;
 
         let mut arguments_label = fltk::frame::Frame::default().with_label(labels[3]);
         let mut arguments_input = Input::default();
-        grid.set_widget(&mut arguments_label, 3, 0).unwrap();
-        grid.set_widget(&mut arguments_input, 3, 1..3).unwrap();
+        grid.set_widget(&mut arguments_label, 3, 0)?;
+        grid.set_widget(&mut arguments_input, 3, 1..3)?;
 
         // Add Save button at the bottom
         let mut save_button = fltk::button::Button::new(200, 250, 100, 30, "Save");
-        grid.set_widget(&mut save_button, 4, 0..3).unwrap();
+        grid.set_widget(&mut save_button, 4, 0..3)?;
 
         window.make_modal(true);
         window.end();
 
-        Self {
-            window,
-            name: name_input,
-            button_icon,
-            command: command_input,
-            command_button,
-            arguments: arguments_input,
-            save: save_button,
-        }
+        Ok(
+            Self {
+                window,
+                name: name_input,
+                button_icon,
+                command: command_input,
+                command_button,
+                arguments: arguments_input,
+                save: save_button,
+            }
+        )
     }
 }
 
@@ -114,7 +116,7 @@ pub struct E4Button {
 
 
 /// Create the [E4Button]s.
-pub fn create_buttons(config: &E4Config, wind: &mut Window, frame: &Frame) -> Vec<E4Button> {
+pub fn create_buttons(config: &E4Config, wind: &mut Window, frame: &Frame) -> Result<Vec<E4Button>, Box<dyn std::error::Error>> {
     let mut buttons = vec![];
     let mut current_e4button;
     // Put the buttons in the window
@@ -126,7 +128,7 @@ pub fn create_buttons(config: &E4Config, wind: &mut Window, frame: &Frame) -> Ve
 
     for button_name in &config.buttons {
         // Read the button config
-        let button_config: E4ButtonConfig = E4Button::read_config(config, button_name);
+        let button_config: E4ButtonConfig = E4Button::read_config(config, button_name)?;
         // Create the icon
         let icon = E4Icon::new(
             PathBuf::from(button_config.icon_path),
@@ -144,14 +146,14 @@ pub fn create_buttons(config: &E4Config, wind: &mut Window, frame: &Frame) -> Ve
             Rc::clone(&command),
             config,
             icon,
-        );
+        )?;
         current_e4button.button.set_tooltip(format!("Right click to edit, delete or to create a new button after {}", button_name).as_str());
         // Add the button to the window
         wind.add(&current_e4button.button);
         buttons.push(current_e4button);
         x += config.icon_width + config.margin_between_buttons;
     }
-    buttons
+    Ok(buttons)
 }
 
 /// Clone trait for [E4Button].
@@ -172,95 +174,107 @@ impl std::clone::Clone for E4Button {
 
 impl E4Button {
     /// Transform the image to a fltk PngImage
-    fn get_fltk_image(image_path: &PathBuf) -> Result<fltk::image::PngImage, image::ImageError> {
-        let image_extension = &image_path
-            .extension()
-            .and_then(std::ffi::OsStr::to_str).unwrap().to_lowercase();
-        let png_data = if image_extension != "exe" {
-            let new_image = ImageReader::open(image_path)?.decode()?;
-            let png_bytes: Vec<u8> = vec![];
-            let mut cursor = Cursor::new(png_bytes);
-            new_image.write_to(&mut cursor, image::ImageFormat::Png)?;
-            cursor.into_inner()
-        } else {
-            // Open and map the exe file
-            match FileMap::open(image_path) {
-                Ok(file_map) => {
-                    // Try as PE32
-                    match PeFile32::from_bytes(&file_map) {
-                        Ok(pe32) => {
-                            let resources = pe32.resources().unwrap();
-                            // RT_ICON as Name::Id
-                            let icon = Name::Id(3);         // RT_ICON
-
-                            // Get the first icon
-                            let icon_data = resources.find_resource(&[icon, Name::Id(1)]).unwrap();
-
-                            // Convert icon raw data to an image
-                            let img = image::load_from_memory(icon_data).unwrap();
-
-                            // Prepare the buffer for the PNG
-                            let png_bytes: Vec<u8> = vec![];
-                            let mut cursor = Cursor::new(png_bytes);
-
-                            // Write the image as PNG
-                            img.write_to(&mut cursor, image::ImageFormat::Png).unwrap();
-                            cursor.into_inner()
-                        },
-                        Err(_) => {
-                            // If PE32 fails, try as PE64
-                            match PeFile64::from_bytes(&file_map) {
-                                Ok(pe64) => {
-                                    let resources = pe64.resources().unwrap();
+    fn get_fltk_image(image_path: &PathBuf) -> Result<fltk::image::PngImage, Box<dyn std::error::Error>> {
+        match &image_path.extension().and_then(std::ffi::OsStr::to_str) {
+            Some(extension) => {
+                let image_extension = extension.to_lowercase();
+                let png_data = if image_extension != "exe" {
+                    let new_image = ImageReader::open(image_path)?.decode()?;
+                    let png_bytes: Vec<u8> = vec![];
+                    let mut cursor = Cursor::new(png_bytes);
+                    new_image.write_to(&mut cursor, image::ImageFormat::Png)?;
+                    cursor.into_inner()
+                } else {
+                    // Open and map the exe file
+                    match FileMap::open(image_path) {
+                        Ok(file_map) => {
+                            // Try as PE32
+                            match PeFile32::from_bytes(&file_map) {
+                                Ok(pe32) => {
+                                    let resources = pe32.resources()?;
                                     // RT_ICON as Name::Id
                                     let icon = Name::Id(3);         // RT_ICON
 
                                     // Get the first icon
-                                    let icon_data = resources.find_resource(&[icon, Name::Id(1)]).unwrap();
+                                    let icon_data = resources.find_resource(&[icon, Name::Id(1)])?;
 
                                     // Convert icon raw data to an image
-                                    let img = image::load_from_memory(icon_data).unwrap();
+                                    let img = image::load_from_memory(icon_data)?;
 
                                     // Prepare the buffer for the PNG
                                     let png_bytes: Vec<u8> = vec![];
                                     let mut cursor = Cursor::new(png_bytes);
 
                                     // Write the image as PNG
-                                    img.write_to(&mut cursor, image::ImageFormat::Png).unwrap();
+                                    img.write_to(&mut cursor, image::ImageFormat::Png)?;
                                     cursor.into_inner()
                                 },
-                                Err(e) => {
-                                    // Cannot open the exe file. Return the generic icon
-                                    let message = format!("Error in opening {}: {}", image_path.display(), e);
-                                    fltk::dialog::alert_default(&message);
-                                    let new_image = ImageReader::open(crate::e4initialize::get_generic_icon())?.decode()?;
-                                    let png_bytes: Vec<u8> = vec![];
-                                    let mut cursor = Cursor::new(png_bytes);
-                                    new_image.write_to(&mut cursor, image::ImageFormat::Png)?;
-                                    cursor.into_inner()
+                                Err(_) => {
+                                    // If PE32 fails, try as PE64
+                                    match PeFile64::from_bytes(&file_map) {
+                                        Ok(pe64) => {
+                                            let resources = pe64.resources()?;
+                                            // RT_ICON as Name::Id
+                                            let icon = Name::Id(3);         // RT_ICON
+
+                                            // Get the first icon
+                                            let icon_data = resources.find_resource(&[icon, Name::Id(1)])?;
+
+                                            // Convert icon raw data to an image
+                                            let img = image::load_from_memory(icon_data)?;
+
+                                            // Prepare the buffer for the PNG
+                                            let png_bytes: Vec<u8> = vec![];
+                                            let mut cursor = Cursor::new(png_bytes);
+
+                                            // Write the image as PNG
+                                            img.write_to(&mut cursor, image::ImageFormat::Png)?;
+                                            cursor.into_inner()
+                                        },
+                                        Err(e) => {
+                                            // Cannot open the exe file. Return the generic icon
+                                            let message = format!("Error in opening {}: {}", image_path.display(), e);
+                                            fltk::dialog::alert_default(&message);
+                                            let new_image = ImageReader::open(crate::e4initialize::get_generic_icon())?.decode()?;
+                                            let png_bytes: Vec<u8> = vec![];
+                                            let mut cursor = Cursor::new(png_bytes);
+                                            new_image.write_to(&mut cursor, image::ImageFormat::Png)?;
+                                            cursor.into_inner()
+                                        }
+                                    }
                                 }
                             }
+                        },
+                        Err(e) => {
+                            let message = format!("Error in opening {}: {}", image_path.display(), e);
+                            fltk::dialog::alert_default(&message);
+                            vec![]
                         }
                     }
-                },
-                Err(e) => {
-                    let message = format!("Error in opening {}: {}", image_path.display(), e);
-                    fltk::dialog::alert_default(&message);
-                    vec![]
-                }
+                };
+                let fltk_image = if !png_data.is_empty() {
+                    fltk::image::PngImage::from_data(&png_data)?
+                } else {
+                    let new_image = ImageReader::open(crate::e4initialize::get_generic_icon())?.decode()?;
+                    let png_bytes: Vec<u8> = vec![];
+                    let mut cursor = Cursor::new(png_bytes);
+                    new_image.write_to(&mut cursor, image::ImageFormat::Png)?;
+                    let png_data = cursor.into_inner();
+                    fltk::image::PngImage::from_data(&png_data)?
+                };
+                Ok(fltk_image)
+            },
+            None => {
+                let message = format!("Error in getting the icon extension {}", image_path.display());
+                fltk::dialog::alert_default(&message);
+                let new_image = ImageReader::open(crate::e4initialize::get_generic_icon())?.decode()?;
+                let png_bytes: Vec<u8> = vec![];
+                let mut cursor = Cursor::new(png_bytes);
+                new_image.write_to(&mut cursor, image::ImageFormat::Png)?;
+                let png_data = cursor.into_inner();
+                Ok(fltk::image::PngImage::from_data(&png_data)?)
             }
-        };
-        let fltk_image = if !png_data.is_empty() {
-            fltk::image::PngImage::from_data(&png_data).unwrap()
-        } else {
-            let new_image = ImageReader::open(crate::e4initialize::get_generic_icon())?.decode()?;
-            let png_bytes: Vec<u8> = vec![];
-            let mut cursor = Cursor::new(png_bytes);
-            new_image.write_to(&mut cursor, image::ImageFormat::Png)?;
-            let png_data = cursor.into_inner();
-            fltk::image::PngImage::from_data(&png_data).unwrap()
-        };
-        Ok(fltk_image)
+        }
     }
 
     /// Create a new [E4Button].
@@ -280,7 +294,7 @@ impl E4Button {
     ///                     .join(".config")
     ///                     .join("e4docker")
     ///                     .join("config");
-    /// let config = E4Config::read(&project_config_dir);
+    /// let config = E4Config::read(&project_config_dir).unwrap();
     /// let frame = Frame::default();
     /// let command = E4Command::new(String::from("/usr/bin/nano"), vec![]);
     /// let command = Rc::new(RefCell::new(command));
@@ -294,7 +308,7 @@ impl E4Button {
     ///     command,
     ///     config: &config,
     ///     icon,
-    /// );
+    /// ).unwrap();
     /// ```
     pub fn new(
         name: &String,
@@ -304,7 +318,7 @@ impl E4Button {
         command: Rc<RefCell<E4Command>>,
         config: &E4Config,
         icon: E4Icon,
-    ) -> Self {
+    ) -> Result<Self, Box<dyn std::error::Error>> {
         let mut button = Button::default()
             .with_pos(x, y)
             .with_size(icon.width(), icon.height())
@@ -326,17 +340,38 @@ impl E4Button {
 
         // If the icon path does not exist, search for the icon in the assets directory
         let mut button_icon = if !icon.path().exists() {
-            Self::get_fltk_image(&config.assets_dir.join(icon.path()))
-                .unwrap_or_else(|_| panic!("Cannot find {:?}", config.assets_dir.join(icon.path())))
+            match Self::get_fltk_image(&config.assets_dir.join(icon.path())) {
+                Ok(image) => image,
+                Err(e) => {
+                    let message = format!("Cannot find  {:?}: {}", config.assets_dir.join(icon.path()), e);
+                    fltk::dialog::alert_default(&message);
+                    let new_image = ImageReader::open(crate::e4initialize::get_generic_icon())?.decode()?;
+                    let png_bytes: Vec<u8> = vec![];
+                    let mut cursor = Cursor::new(png_bytes);
+                    new_image.write_to(&mut cursor, image::ImageFormat::Png)?;
+                    fltk::image::PngImage::from_data(&cursor.into_inner())?
+                }
+            }
         } else {
-            Self::get_fltk_image(icon.path())
-                .unwrap_or_else(|_| panic!("Cannot find {:?}", config.assets_dir.join(icon.path())))
+            match Self::get_fltk_image(icon.path()) {
+                Ok(image) => image,
+                Err(e) => {
+                    let message = format!("Cannot find  {:?}: {}", icon.path(), e);
+                    fltk::dialog::alert_default(&message);
+
+                    let new_image = ImageReader::open(crate::e4initialize::get_generic_icon())?.decode()?;
+                    let png_bytes: Vec<u8> = vec![];
+                    let mut cursor = Cursor::new(png_bytes);
+                    new_image.write_to(&mut cursor, image::ImageFormat::Png)?;
+                    fltk::image::PngImage::from_data(&cursor.into_inner())?
+                }
+            }
         };
         let (w, h) = (icon.width(), icon.height());
 
         button_icon.scale(w, h, true, true);
         button.set_image(Some(button_icon));
-        E4Button {
+        Ok(E4Button {
             name: name.to_string(),
             x,
             y,
@@ -345,7 +380,7 @@ impl E4Button {
             button,
             icon,
             command
-        }
+        })
     }
 
     /// Set a new command for the [E4Button].
@@ -364,7 +399,13 @@ impl E4Button {
         let mut config_file = PathBuf::from(&self.name).with_extension("");
         config_file.set_extension("conf");
         config_file = config.config_dir.join(config_file);
-        std::fs::remove_file(&config_file).unwrap();
+        match std::fs::remove_file(&config_file) {
+            Ok(_) => {},
+            Err(e) => {
+                let message = format!("Cannot remove the config file: {}", e);
+                fltk::dialog::alert_default(&message);
+            }
+        }
 
         // DON'T Delete the icon
         // self.icon.delete(&config);
@@ -388,294 +429,387 @@ impl E4Button {
     /// Edit the [E4Button].
     pub fn edit(&mut self, config: &mut E4Config) {
         // Create the ui
-        let mut ui = E4ButtonEditUI::new();
-        let mut config_file = config.config_dir.join(&self.name);
-        config_file.set_extension("conf");
-        let tmp_file_path = crate::e4config::get_tmp_file();
-        std::fs::copy(config_file.clone(), tmp_file_path).unwrap();
-        ui.window.set_label(format!("Edit {}", self.name).as_str());
-        let command = self.command.borrow();
-        let icon = self.icon.path().display().to_string();
-        let grid_values = [&self.name, &icon, command.get_cmd(), command.get_arguments()];
+        match E4ButtonEditUI::new() {
+            Ok(mut ui) => {
+                let mut config_file = config.config_dir.join(&self.name);
+                config_file.set_extension("conf");
+                let tmp_file_path = crate::e4config::get_tmp_file();
+                match std::fs::copy(&config_file, &tmp_file_path) {
+                    Ok(_) => {},
+                    Err(e) => {
+                        panic!("Cannot copy {} on {}: {}", config_file.display(), tmp_file_path.display(), e);
+                    }
 
-        // Populate the ui
-        ui.name.set_value(grid_values[0]);
-        let icon_path = &config.assets_dir.join(self.icon.path());
-        let mut image = Self::get_fltk_image(icon_path).unwrap();
-        image.scale(self.width, self.height, true, true);
-        ui.button_icon.set_size(self.width, self.height);
+                }
+                ui.window.set_label(format!("Edit {}", self.name).as_str());
+                let command = self.command.borrow();
+                let icon = self.icon.path().display().to_string();
+                let grid_values = [&self.name, &icon, command.get_cmd(), command.get_arguments()];
 
-        ui.button_icon.set_image(Some(image));
-
-        // Use an Rc to share the state between the callback and the rest of the code
-        let icon_path = Rc::new(RefCell::new(icon_path.clone()));
-        let icon_path_clone = Rc::clone(&icon_path);
-
-        let assets_dir = config.assets_dir.clone();
-        let (w, h) = (self.width, self.height);
-        ui.button_icon.set_callback(move |b| {
-            let mut chooser = fltk::dialog::FileChooser::new(
-                &assets_dir,                    // directory
-                "*.png",                    // filter or pattern
-                fltk::dialog::FileChooserType::Single, // chooser type
-                "Choose icon",     // title
-            );
-            chooser.show();
-            while chooser.shown() {
-                app::wait();
-            }
-            if chooser.value(1).is_some() {
-                let image_path = chooser.value(1).unwrap();
-                let mut new_image = match Self::get_fltk_image(&PathBuf::from(&image_path)) {
+                // Populate the ui
+                ui.name.set_value(grid_values[0]);
+                let icon_path = &config.assets_dir.join(self.icon.path());
+                let mut image = match Self::get_fltk_image(icon_path) {
                     Ok(img) => img,
                     Err(e) => {
-                        let message = format!("Cannot load the image: {}", e);
-                        fltk::dialog::alert_default(&message);
-                        Self::get_fltk_image(&icon_path_clone.borrow_mut()).unwrap()
+                        panic!("Cannot read the button image: {}", e);
                     }
                 };
-                new_image.scale(w, h, true, true);
-                b.set_image(Some(new_image));
-                *icon_path_clone.borrow_mut() = std::path::PathBuf::from(&image_path);
-                b.redraw();
-                let mut config = Ini::new();
-                let tmp_file_path = crate::e4config::get_tmp_file();
-                let result = config
-                    .load(&tmp_file_path);
-                config.set(crate::e4config::BUTTON_BUTTON_SECTION, "icon", Some(image_path));
-                config.write(&tmp_file_path).expect("Cannot save the config file.");
+                image.scale(self.width, self.height, true, true);
+                ui.button_icon.set_size(self.width, self.height);
 
-                match result {
-                    Ok(_) => (),
-                    Err(e) => {
-                        let message = format!("Cannot load the button config file: {}", e);
-                        fltk::dialog::alert_default(&message);
-                    },
-                };
-            }
-        });
+                ui.button_icon.set_image(Some(image));
 
-        ui.command.set_value(grid_values[2]);
-        let mut command_clone = ui.command.clone();
-        ui.command_button.set_callback(move |_| {
-            // Ottieni la directory corrente
-            let current_dir = std::env::current_dir().ok().unwrap();
+                // Use an Rc to share the state between the callback and the rest of the code
+                let icon_path = Rc::new(RefCell::new(icon_path.clone()));
+                let icon_path_clone = Rc::clone(&icon_path);
 
-            // Risali fino alla radice
-            let mut root_dir = current_dir;
-            while let Some(parent) = root_dir.parent() {
-                root_dir = parent.to_path_buf();
-            }
-
-            let mut chooser = fltk::dialog::FileChooser::new(
-                &root_dir,                    // directory
-                "*",                    // filter or pattern
-                fltk::dialog::FileChooserType::Single, // chooser type
-                "Choose a program",     // title
-            );
-            chooser.show();
-            while chooser.shown() {
-                app::wait();
-            }
-            if chooser.value(1).is_some() {
-                let command_path = chooser.value(1).unwrap();
-                command_clone.set_value(&command_path);
-            }
-        });
-
-        ui.arguments.set_value(command.get_arguments());
-
-        // Add OK button at the bottom
-        let mut config_clone = config.clone();
-        let old_name = self.name.clone();
-        ui.save.set_callback({
-            let mut wind = ui.window.clone();
-            move |_| {
-                wind.hide();
-                let tmp_file_path = crate::e4config::get_tmp_file();
-                let mut tmp_config = Ini::new();
-                let _ = tmp_config
-                    .load(&tmp_file_path);
-                let name = ui.name.value();
-                if name == GENERIC {
-                    let message = "Cannot modify the GENERIC button";
-                    fltk::dialog::alert_default(message);
-                    return;
-                }
-                let mut config_file = config_clone.config_dir.join(name.clone());
-                config_file.set_extension("conf");
-                let command = ui.command.value();
-                let arguments = ui.arguments.value();
-                tmp_config.set(crate::e4config::BUTTON_BUTTON_SECTION, "command", Some(command));
-                tmp_config.set(crate::e4config::BUTTON_BUTTON_SECTION, "arguments", Some(arguments));
-                tmp_config.write(&tmp_file_path).unwrap_or_else(|_| panic!("Cannot save {}", &tmp_file_path.display()));
-                let mut n = 0;
-                for (i, button) in config_clone.buttons.iter().enumerate() {
-                    if *button == old_name {
-                        n = i + 1;
+                let assets_dir = config.assets_dir.clone();
+                let (w, h) = (self.width, self.height);
+                ui.button_icon.set_callback(move |b| {
+                    let mut chooser = fltk::dialog::FileChooser::new(
+                        &assets_dir,                    // directory
+                        "*.png",                    // filter or pattern
+                        fltk::dialog::FileChooserType::Single, // chooser type
+                        "Choose icon",     // title
+                    );
+                    chooser.show();
+                    while chooser.shown() {
+                        app::wait();
                     }
+                    if chooser.value(1).is_some() {
+                        let image_path = match chooser.value(1) {
+                            Some(img) => img,
+                            None => panic!("Cannot find the choosen image"),
+                        };
+                        let mut new_image = match Self::get_fltk_image(&PathBuf::from(&image_path)) {
+                            Ok(img) => img,
+                            Err(e) => {
+                                let message = format!("Cannot load the image: {}", e);
+                                fltk::dialog::alert_default(&message);
+                                match Self::get_fltk_image(&icon_path_clone.borrow_mut()) {
+                                    Ok(img) => img,
+                                    Err(e) => {
+                                        panic!("Cannot read the button image: {}", e);
+                                    }
+                                }
+                            }
+                        };
+                        new_image.scale(w, h, true, true);
+                        b.set_image(Some(new_image));
+                        *icon_path_clone.borrow_mut() = std::path::PathBuf::from(&image_path);
+                        b.redraw();
+                        let mut config = Ini::new();
+                        let tmp_file_path = crate::e4config::get_tmp_file();
+                        let result = config
+                            .load(&tmp_file_path);
+                        config.set(crate::e4config::BUTTON_BUTTON_SECTION, "icon", Some(image_path));
+                        config.write(&tmp_file_path).expect("Cannot save the config file.");
+
+                        match result {
+                            Ok(_) => (),
+                            Err(e) => {
+                                let message = format!("Cannot load the button config file: {}", e);
+                                fltk::dialog::alert_default(&message);
+                            },
+                        };
+                    }
+                });
+
+                ui.command.set_value(grid_values[2]);
+                let mut command_clone = ui.command.clone();
+                ui.command_button.set_callback(move |_| {
+                    // Obtain the current directory
+                    let current_dir = match std::env::current_dir() {
+                        Ok(dir) => dir,
+                        Err(e) => {
+                            panic!("Cannot get che current directory: {}", e);
+                        }
+                    };
+
+                    // Go up until the root directory
+                    let mut root_dir = current_dir;
+                    while let Some(parent) = root_dir.parent() {
+                        root_dir = parent.to_path_buf();
+                    }
+
+                    let mut chooser = fltk::dialog::FileChooser::new(
+                        &root_dir,                    // directory
+                        "*",                    // filter or pattern
+                        fltk::dialog::FileChooserType::Single, // chooser type
+                        "Choose a program",     // title
+                    );
+                    chooser.show();
+                    while chooser.shown() {
+                        app::wait();
+                    }
+                    if chooser.value(1).is_some() {
+                        let command_path = match chooser.value(1) {
+                            Some(cmd) => cmd,
+                            None => panic!("Cannot find the choosen command"),
+                        };
+                        command_clone.set_value(&command_path);
+                    }
+                });
+
+                ui.arguments.set_value(command.get_arguments());
+
+                // Add OK button at the bottom
+                let mut config_clone = config.clone();
+                let old_name = self.name.clone();
+                ui.save.set_callback({
+                    let mut wind = ui.window.clone();
+                    move |_| {
+                        wind.hide();
+                        let tmp_file_path = crate::e4config::get_tmp_file();
+                        let mut tmp_config = Ini::new();
+                        let _ = tmp_config
+                            .load(&tmp_file_path);
+                        let name = ui.name.value();
+                        if name == GENERIC {
+                            let message = "Cannot modify the GENERIC button";
+                            fltk::dialog::alert_default(message);
+                            return;
+                        }
+                        let mut config_file = config_clone.config_dir.join(&name);
+                        config_file.set_extension("conf");
+                        let command = ui.command.value();
+                        let arguments = ui.arguments.value();
+                        tmp_config.set(crate::e4config::BUTTON_BUTTON_SECTION, "command", Some(command));
+                        tmp_config.set(crate::e4config::BUTTON_BUTTON_SECTION, "arguments", Some(arguments));
+                        match tmp_config.write(&tmp_file_path) {
+                            Ok(_) => {},
+                            Err(e) => {
+                                panic!("Cannot save {}: {}", &tmp_file_path.display(), e);
+                            }
+                        }
+                        let mut n = 0;
+                        for (i, button) in config_clone.buttons.iter().enumerate() {
+                            if *button == old_name {
+                                n = i + 1;
+                            }
+                        }
+                        config_clone.set_value(crate::e4config::E4DOCKER_BUTTON_SECTION.to_string(), format!("button{}", n), Some(name));
+                        match std::fs::copy(&tmp_file_path, &config_file) {
+                            Ok(_) => {},
+                            Err(e) => {
+                                panic!("Cannot copy the temporary file {} to the config file {}: {}", tmp_file_path.display(), config_file.display(), e);
+                            }
+                        }
+                        crate::e4config::restart_app();
+                    }
+                });
+
+                ui.window.show();
+
+                // Run modal window
+                while ui.window.shown() {
+                    app::wait();
                 }
-                config_clone.set_value(crate::e4config::E4DOCKER_BUTTON_SECTION.to_string(), format!("button{}", n), Some(name));
-                std::fs::copy(tmp_file_path, &config_file).unwrap();
-                crate::e4config::restart_app();
+            },
+            Err(e) => {
+                let message = format!("Cannot get the buttons ui: {}", e);
+                fltk::dialog::alert_default(&message);
             }
-        });
-
-        ui.window.show();
-
-        // Run modal window
-        while ui.window.shown() {
-            app::wait();
         }
     }
 
     /// Create a new [E4Button] after sibling.
-    pub fn new_button(config: &mut E4Config, sibling: &E4Button) {
-        let mut ui = E4ButtonEditUI::new();
-        let name = GENERIC;
-        let mut config_file = config.config_dir.join(name);
-        config_file.set_extension("conf");
-        let tmp_file_path = crate::e4config::get_tmp_file();
-        std::fs::copy(config_file.clone(), tmp_file_path).unwrap();
-        let button_config = Self::read_config(config, &name.to_string());
-        ui.window.set_label("New E4Button");
-        let command = button_config.command;
-        let icon = button_config.icon_path;
-        let grid_values = [name, &icon, command.get_cmd(), command.get_arguments()];
-
-        // Populate the ui
-        ui.name.set_value(grid_values[0]);
-
-        let icon_path = &mut config.assets_dir.join(GENERIC);
-        icon_path.set_extension("png");
-        let image = Self::get_fltk_image(icon_path).unwrap();
-        ui.button_icon.set_image(Some(image));
-
-        // Use a Rc to share the state between the callback and the rest of the code
-        let icon_path = Rc::new(RefCell::new(icon_path.clone()));
-        let icon_path_clone = Rc::clone(&icon_path);
-
-        let assets_dir = config.assets_dir.clone();
-        let (w, h) = (config.icon_width, config.icon_height);
-        ui.button_icon.set_callback(move |b| {
-            let mut chooser = fltk::dialog::FileChooser::new(
-                &assets_dir,                    // directory
-                "*.png",                    // filter or pattern
-                fltk::dialog::FileChooserType::Single, // chooser type
-                "Choose icon",     // title
-            );
-            chooser.show();
-            while chooser.shown() {
-                app::wait();
-            }
-            if chooser.value(1).is_some() {
-                let image_path = chooser.value(1).unwrap();
-                let mut new_image = match Self::get_fltk_image(&PathBuf::from(&image_path)) {
-                    Ok(img) => img,
-                    Err(e) => {
-                        let message = format!("Cannot load the image: {}", e);
-                        fltk::dialog::alert_default(&message);
-                        Self::get_fltk_image(&icon_path_clone.borrow_mut()).unwrap()
-                    }
-                };
-
-                new_image.scale(w, h, true, true);
-                b.set_image(Some(new_image));
-                *icon_path_clone.borrow_mut() = std::path::PathBuf::from(&image_path);
-                b.redraw();
-                let mut config = Ini::new();
-                let tmp_file_path = crate::e4config::get_tmp_file();
-                let result = config
-                    .load(&tmp_file_path);
-                config.set(crate::e4config::BUTTON_BUTTON_SECTION, "icon", Some(image_path));
-                config.write(&tmp_file_path).expect("Cannot save the config file.");
-
-                match result {
-                    Ok(_) => (),
-                    Err(e) => {
-                        let message = format!("Cannot load the button config file: {}", e);
-                        fltk::dialog::alert_default(&message);
-                    },
-                };
-            }
-        });
-
-        ui.command.set_value(grid_values[2]);
-        let mut command_clone = ui.command.clone();
-        ui.command_button.set_callback(move |_| {
-            // Ottieni la directory corrente
-            let current_dir = std::env::current_dir().ok().unwrap();
-
-            // Risali fino alla radice
-            let mut root_dir = current_dir;
-            while let Some(parent) = root_dir.parent() {
-                root_dir = parent.to_path_buf();
-            }
-
-            let mut chooser = fltk::dialog::FileChooser::new(
-                &root_dir,                    // directory
-                "*",                    // filter or pattern
-                fltk::dialog::FileChooserType::Single, // chooser type
-                "Choose a program",     // title
-            );
-            chooser.show();
-            while chooser.shown() {
-                app::wait();
-            }
-            if chooser.value(1).is_some() {
-                let command_path = chooser.value(1).unwrap();
-                command_clone.set_value(&command_path);
-            }
-        });
-
-        ui.arguments.set_value(command.get_arguments());
-
-        let mut config_clone = config.clone();
-        // Add OK button at the bottom
-        let sibling_name = sibling.name.clone();
-        ui.save.set_callback({
-            let mut wind = ui.window.clone();
-            move |_| {
-                wind.hide();
-                let tmp_file_path = crate::e4config::get_tmp_file();
-                let mut tmp_config = Ini::new();
-                let _ = tmp_config
-                    .load(&tmp_file_path);
-                let name = ui.name.value();
-                let mut config_file = config_clone.config_dir.join(&name);
+    pub fn add_button_after(config: &mut E4Config, sibling: &E4Button) {
+        match E4ButtonEditUI::new() {
+            Ok(mut ui) => {
+                let name = GENERIC;
+                let mut config_file = config.config_dir.join(name);
                 config_file.set_extension("conf");
-                let command = ui.command.value();
-                let arguments = ui.arguments.value();
-                tmp_config.set(crate::e4config::BUTTON_BUTTON_SECTION, "command", Some(command));
-                tmp_config.set(crate::e4config::BUTTON_BUTTON_SECTION, "arguments", Some(arguments));
-                tmp_config.write(&tmp_file_path).unwrap_or_else(|_| panic!("Cannot save {}", &tmp_file_path.display()));
-                std::fs::copy(tmp_file_path, &config_file).unwrap();
-                // Modify e4docker.conf to put the button after sibling
-                let number_of_buttons = config_clone.get_number_of_buttons() + 1;
-                config_clone.set_number_of_buttons(number_of_buttons);
-                let mut new_buttons = vec![];
-                for button in &config_clone.buttons {
-                    new_buttons.push(button.clone());
-                    if button == &sibling_name {
-                        new_buttons.push(name.to_string());
+                let tmp_file_path = crate::e4config::get_tmp_file();
+                match std::fs::copy(&config_file, &tmp_file_path) {
+                    Ok(_) => {},
+                    Err(e) => {
+                        panic!("Cannot copy the {} on {}: {}", config_file.display(), tmp_file_path.display(), e);
                     }
+
                 }
-                config_clone.save_buttons(&new_buttons);
-                crate::e4config::restart_app();
+                let button_config = match Self::read_config(config, &name.to_string()) {
+                    Ok(config) => config,
+                    Err(e) => {
+                        panic!("Cannot read the generic button configuration file: {}", e);
+                    }
+                };
+                ui.window.set_label("New E4Button");
+                let command = button_config.command;
+                let icon = button_config.icon_path;
+                let grid_values = [name, &icon, command.get_cmd(), command.get_arguments()];
+
+                // Populate the ui
+                ui.name.set_value(grid_values[0]);
+
+                let icon_path = &mut config.assets_dir.join(GENERIC);
+                icon_path.set_extension("png");
+                let image = match Self::get_fltk_image(icon_path) {
+                    Ok(img) => img,
+                    Err(e) => panic!("Cannot get {}: {}", icon_path.display(), e),
+                };
+                ui.button_icon.set_image(Some(image));
+
+                // Use a Rc to share the state between the callback and the rest of the code
+                let icon_path = Rc::new(RefCell::new(icon_path.clone()));
+                let icon_path_clone = Rc::clone(&icon_path);
+
+                let assets_dir = config.assets_dir.clone();
+                let (w, h) = (config.icon_width, config.icon_height);
+                ui.button_icon.set_callback(move |b| {
+                    let mut chooser = fltk::dialog::FileChooser::new(
+                        &assets_dir,                    // directory
+                        "*.png",                    // filter or pattern
+                        fltk::dialog::FileChooserType::Single, // chooser type
+                        "Choose icon",     // title
+                    );
+                    chooser.show();
+                    while chooser.shown() {
+                        app::wait();
+                    }
+                    if chooser.value(1).is_some() {
+                        let image_path = match chooser.value(1) {
+                            Some(img) => img,
+                            None => panic!("Cannot find the choosen image"),
+                        };
+                        let mut new_image = match Self::get_fltk_image(&PathBuf::from(&image_path)) {
+                            Ok(img) => img,
+                            Err(e) => {
+                                let message = format!("Cannot load the image: {}", e);
+                                fltk::dialog::alert_default(&message);
+                                match Self::get_fltk_image(&icon_path_clone.borrow_mut()) {
+                                    Ok(img) => img,
+                                    Err(e) => panic!("Cannot get {}: {}", icon_path_clone.borrow_mut().display(), e),
+                                }
+                            }
+                        };
+
+                        new_image.scale(w, h, true, true);
+                        b.set_image(Some(new_image));
+                        *icon_path_clone.borrow_mut() = std::path::PathBuf::from(&image_path);
+                        b.redraw();
+                        let mut config = Ini::new();
+                        let tmp_file_path = crate::e4config::get_tmp_file();
+                        let result = config
+                            .load(&tmp_file_path);
+                        config.set(crate::e4config::BUTTON_BUTTON_SECTION, "icon", Some(image_path));
+                        config.write(&tmp_file_path).expect("Cannot save the config file.");
+
+                        match result {
+                            Ok(_) => (),
+                            Err(e) => {
+                                let message = format!("Cannot load the button config file: {}", e);
+                                fltk::dialog::alert_default(&message);
+                            },
+                        };
+                    }
+                });
+
+                ui.command.set_value(grid_values[2]);
+                let mut command_clone = ui.command.clone();
+                ui.command_button.set_callback(move |_| {
+                    // Ottieni la directory corrente
+                    let current_dir = match std::env::current_dir() {
+                        Ok(dir) => dir,
+                        Err(e) => panic!("Cannot get the current directory: {}", e),
+                    };
+
+                    // Risali fino alla radice
+                    let mut root_dir = current_dir;
+                    while let Some(parent) = root_dir.parent() {
+                        root_dir = parent.to_path_buf();
+                    }
+
+                    let mut chooser = fltk::dialog::FileChooser::new(
+                        &root_dir,                    // directory
+                        "*",                    // filter or pattern
+                        fltk::dialog::FileChooserType::Single, // chooser type
+                        "Choose a program",     // title
+                    );
+                    chooser.show();
+                    while chooser.shown() {
+                        app::wait();
+                    }
+                    if chooser.value(1).is_some() {
+                        let command_path = match chooser.value(1) {
+                            Some(cmd) => cmd,
+                            None => panic!("Cannot find the choosen command"),
+                        };
+                        command_clone.set_value(&command_path);
+                    }
+                });
+
+                ui.arguments.set_value(command.get_arguments());
+
+                let mut config_clone = config.clone();
+                // Add OK button at the bottom
+                let sibling_name = sibling.name.clone();
+                ui.save.set_callback({
+                    let mut wind = ui.window.clone();
+                    move |_| {
+                        wind.hide();
+                        let tmp_file_path = crate::e4config::get_tmp_file();
+                        let mut tmp_config = Ini::new();
+                        let _ = tmp_config
+                            .load(&tmp_file_path);
+                        let name = ui.name.value();
+                        let mut config_file = config_clone.config_dir.join(&name);
+                        config_file.set_extension("conf");
+                        let command = ui.command.value();
+                        let arguments = ui.arguments.value();
+                        tmp_config.set(crate::e4config::BUTTON_BUTTON_SECTION, "command", Some(command));
+                        tmp_config.set(crate::e4config::BUTTON_BUTTON_SECTION, "arguments", Some(arguments));
+                        match tmp_config.write(&tmp_file_path) {
+                            Ok(_) => {},
+                            Err(e) => {
+                                panic!("Cannot save {}: {}", &tmp_file_path.display(), e);
+                            }
+                        };
+
+                        match std::fs::copy(&tmp_file_path, &config_file) {
+                            Ok(_) => {},
+                            Err(e) => {
+                                panic!("Cannot copy {} on {}: {}", tmp_file_path.display(), config_file.display(), e);
+                            },
+                        };
+                        // Modify e4docker.conf to put the button after sibling
+                        let number_of_buttons = match config_clone.get_number_of_buttons() {
+                            Ok(b) => b +1,
+                            Err(e) => {
+                                panic!("Cannot get the number of buttons: {}", e);
+                            }
+                        };
+                        config_clone.set_number_of_buttons(number_of_buttons);
+                        let mut new_buttons = vec![];
+                        for button in &config_clone.buttons {
+                            new_buttons.push(button.clone());
+                            if button == &sibling_name {
+                                new_buttons.push(name.to_string());
+                            }
+                        }
+                        config_clone.save_buttons(&new_buttons);
+                        crate::e4config::restart_app();
+                    }
+                });
+
+                ui.window.show();
+
+                // Run modal window
+                while ui.window.shown() {
+                    app::wait();
+                }
+            },
+            Err(e) => {
+                let message = format!("Cannot get the buttons ui: {}", e);
+                fltk::dialog::alert_default(&message);
             }
-        });
-
-        ui.window.show();
-
-        // Run modal window
-        while ui.window.shown() {
-            app::wait();
         }
     }
 
     /// Read the configuration of a [E4Button] from confi/button_name.conf.
     /// Return an instance of a [E4ButtonConfig], containing the fltk [Button] and the [E4Command].
-    pub fn read_config(config: &E4Config, button_name: &String) -> E4ButtonConfig {
+    pub fn read_config(config: &E4Config, button_name: &String) -> Result<E4ButtonConfig, Box<dyn std::error::Error>> {
         // Read config.config_dir/button_name.conf
         let mut config_file = config.config_dir.join(button_name);
         config_file.set_extension("conf");
@@ -692,13 +826,22 @@ impl E4Button {
         };
 
         // Get the fields
-        let command: String = config.get(crate::e4config::BUTTON_BUTTON_SECTION, "COMMAND").unwrap();
-        let icon_path: String = config.get(crate::e4config::BUTTON_BUTTON_SECTION, "ICON").unwrap();
-        let mut arguments: String = config.get(crate::e4config::BUTTON_BUTTON_SECTION, "ARGUMENTS").unwrap_or_else(|| {"".to_string()});
+        let command: String = match config.get(crate::e4config::BUTTON_BUTTON_SECTION, "COMMAND") {
+            Some(command) => command,
+            None => "".to_string()
+        };
+        let icon_path: String = match config.get(crate::e4config::BUTTON_BUTTON_SECTION, "ICON") {
+            Some(path) => path,
+            None => crate::e4initialize::get_generic_icon().display().to_string()
+        };
+        let mut arguments: String = match config.get(crate::e4config::BUTTON_BUTTON_SECTION, "ARGUMENTS") {
+            Some(arg) => arg,
+            None => "".to_string(),
+        };
         arguments = arguments.trim().to_string();
 
         // Create the E4Command
         let command = E4Command::new(command, arguments);
-        E4ButtonConfig { command, icon_path }
+        Ok(E4ButtonConfig { command, icon_path })
     }
 }

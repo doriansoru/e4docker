@@ -20,17 +20,17 @@ OH0ABr93O2dy7tjECslfgbt1tCiFb8CEoZtexZ9Dtj6cSNBlpLn07itw/XBRKmvKtAo4iKc9cmJQ
 9/e1qpJn/wKUDujnkcHdPXl1PLZhcKcdtT5kmoyGGc36xarzM4yWvuQazf6rMtwBbWiehsGr5+cA
 AAAASUVORK5CYII=";
 
-pub fn create_generic_button(destination: &std::path::Path) -> bool {
+pub fn create_generic_button(destination: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
     let img64 = GENERIC_PNG.replace("\n", "");
-    let bytes = general_purpose::STANDARD.decode(img64).unwrap();
+    let bytes = general_purpose::STANDARD.decode(img64)?;
 
     // Create a file on destination
-    let mut file = std::fs::File::create(destination).unwrap();
+    let mut file = std::fs::File::create(destination)?;
 
     // Write the bytes on file
-    file.write_all(&bytes).unwrap();
+    file.write_all(&bytes)?;
 
-    true
+    Ok(())
 }
 
 pub fn get_package_config_dir() -> PathBuf {
@@ -56,8 +56,13 @@ pub fn get_package_config_dir() -> PathBuf {
     // Generic button png file
     let mut generic_png =  assets_dir.join("generic");
     generic_png.set_extension("png");
-    if !generic_png.exists() && !create_generic_button(&generic_png) {
-        panic!("Cannot create {}", generic_png.display());
+    if !generic_png.exists()  {
+        match create_generic_button(&generic_png) {
+            Ok(_) => {},
+            Err(e) => {
+                panic!("Cannot create {}: {}", generic_png.display(), e);
+            },
+        }
     }
 
     // Generic button conf file

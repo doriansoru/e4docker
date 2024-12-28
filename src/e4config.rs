@@ -11,6 +11,23 @@ pub const E4DOCKER_BUTTON_SECTION: &str = "BUTTONS";
 /// A button configuration file.
 pub const BUTTON_BUTTON_SECTION: &str = "BUTTON";
 
+
+// Definisci un tipo di errore personalizzato
+#[derive(Debug)]
+struct E4Error {
+    details: String,
+}
+
+// Implementa il tratto `std::fmt::Display` per il tuo tipo di errore
+impl std::fmt::Display for E4Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.details)
+    }
+}
+
+impl std::error::Error for E4Error {}
+
+
 /// The configuration of e4docker read from e4docker.conf.
 pub struct E4Config {
     pub config_dir: PathBuf,
@@ -109,76 +126,81 @@ impl std::clone::Clone for E4Config {
 
 impl E4Config {
     /// Read the configuration from config_dir/e4docker.conf.
-    pub fn read(config_dir: &Path) -> Self {
+    pub fn read(config_dir: &Path) -> Result<Self, Box<dyn std::error::Error>> {
         // Read the config file
         let package_name = env!("CARGO_PKG_NAME");
         let mut config_file = config_dir.join(package_name);
         config_file.set_extension("conf");
         let mut config = Ini::new();
-        let result = config
-            .load(config_file);
-        match result {
-            Ok(_) => (),
-            Err(e) => {
-                let message = format!("Cannot load e4docker.conf: {}", e);
-                fltk::dialog::alert_default(&message);
-            },
-        };
+        let _ = config
+            .load(config_file)?;
 
         // Read the x position of the window
         let mut x: i32 = 0;
         let mut y: i32 = 0;
+        let mut number_of_buttons: i32 = 0;
+        let mut margin_between_buttons: i32 = 0;
+        let mut frame_margin: i32 = 0;
+        let mut icon_width: i32 = 0;
+        let mut icon_height: i32 = 0;
+
+        // Read the x coordinate of the docker
         if let Some(val) = config.get(E4DOCKER_DOCKER_SECTION, "X") {
-            x = val.parse().unwrap();
+            x = val.parse()?;
         }
+
+        // Read the y coordinate of the docker
         if let Some(val) = config.get(E4DOCKER_DOCKER_SECTION, "Y") {
-            y = val.parse().unwrap();
+            y = val.parse()?;
         }
+
         // Read the number of buttons
-        let number_of_buttons: i32 = config
-            .get(E4DOCKER_DOCKER_SECTION, "NUMBER_OF_BUTTONS")
-            .unwrap()
-            .parse()
-            .unwrap();
+        if let Some(val) = config.get(E4DOCKER_DOCKER_SECTION, "NUMBER_OF_BUTTONS") {
+            number_of_buttons = val.parse()?;
+        };
+
         // Read the margin between the buttons
-        let margin_between_buttons: i32 = config
-            .get(E4DOCKER_DOCKER_SECTION, "MARGIN_BETWEEN_BUTTONS")
-            .unwrap()
-            .parse()
-            .unwrap();
-        // Read the margin between the frame and the window
-        let frame_margin: i32 = config
-            .get(E4DOCKER_DOCKER_SECTION, "FRAME_MARGIN")
-            .unwrap()
-            .parse()
-            .unwrap();
+        if let Some(val) = config.get(E4DOCKER_DOCKER_SECTION, "MARGIN_BETWEEN_BUTTONS") {
+            margin_between_buttons = val.parse()?;
+        };
+
+        // Read the margin between the buttons
+        if let Some(val) = config.get(E4DOCKER_DOCKER_SECTION, "FRAME_MARGIN") {
+            frame_margin = val.parse()?;
+        };
+
         // Read the buttons
         let mut buttons = vec![];
         for n in 1..=number_of_buttons {
             let button_key = format!("button{}", n);
-            let button_name = config.get(E4DOCKER_BUTTON_SECTION, &button_key).unwrap();
+            let mut button_name: String = "".to_string();
+            if let Some(val) = config.get(E4DOCKER_BUTTON_SECTION, &button_key) {
+                button_name = val;
+            };
             buttons.push(button_name);
         }
+
         // Read the buttons width (the same as the icons width)
-        let icon_width: i32 = config
-            .get(E4DOCKER_DOCKER_SECTION, "ICON_WIDTH")
-            .unwrap()
-            .parse()
-            .unwrap();
+        if let Some(val) = config.get(E4DOCKER_DOCKER_SECTION, "ICON_WIDTH") {
+            icon_width = val.parse()?;
+        };
+
         // Read the buttons height (the same as the icons height)
-        let icon_height: i32 = config
-            .get(E4DOCKER_DOCKER_SECTION, "ICON_HEIGHT")
-            .unwrap()
-            .parse()
-            .unwrap();
+        if let Some(val) = config.get(E4DOCKER_DOCKER_SECTION, "ICON_HEIGHT") {
+            icon_height = val.parse()?;
+        };
+
+
         // Calculates the window width
         let window_width = (number_of_buttons * icon_width)
             + (number_of_buttons * margin_between_buttons)
             + (frame_margin * 2);
+
         // Calculates the window height, adding margin * 4 for the 4 sides frame margin
         let window_height = icon_height + (frame_margin * 4);
+
         // Return the configuration
-        Self {
+        Ok(Self {
             config_dir: config_dir.to_path_buf(),
             buttons,
             assets_dir: e4initialize::get_package_assets_dir(),
@@ -190,11 +212,11 @@ impl E4Config {
             icon_height,
             x,
             y,
-        }
+        })
     }
 
     /// Get a value from the configuration file.
-    pub fn get_value(&mut self, section: String, key: String) -> String {
+    pub fn get_value(&mut self, section: String, key: String) -> Option<String> {
         // Read the config file
         let package_name = env!("CARGO_PKG_NAME");
         let mut config_file = self.config_dir.join(package_name);
@@ -210,7 +232,7 @@ impl E4Config {
             },
         };
         // Get and return the key and the value
-        config.get(&section, &key).unwrap()
+        config.get(&section, &key)
     }
 
     /// Save the buttons in config_dir/e4docker.conf.
@@ -244,9 +266,18 @@ impl E4Config {
     }
 
     /// Get the number of buttons in the configuration file
-    pub fn get_number_of_buttons(&mut self) -> i32 {
-        let number_of_buttons: i32 = self.get_value(E4DOCKER_DOCKER_SECTION.to_string(), String::from("NUMBER_OF_BUTTONS")).parse().unwrap();
-        number_of_buttons
+    pub fn get_number_of_buttons(&mut self) -> Result<i32, Box<dyn std::error::Error>> {
+        let number_of_buttons: i32;
+        if let Some(val) = self.get_value(E4DOCKER_DOCKER_SECTION.to_string(), String::from("NUMBER_OF_BUTTONS")) {
+            number_of_buttons = val.parse()?;
+        } else {
+            return Err(Box::new(
+                E4Error {
+                    details: String::from("Cannot get the number of buttons"),
+                }
+            ));
+        };
+        Ok(number_of_buttons)
     }
 
     /// Set the number of buttons in the configuration file

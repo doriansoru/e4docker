@@ -20,9 +20,9 @@ fn about() {
 }
 
 /// Redraw the [app] window.
-fn redraw_window(project_config_dir: &Path, wind: &mut Window) -> Vec<E4Button> {
+fn redraw_window(project_config_dir: &Path, wind: &mut Window) -> Result<(), Box<dyn std::error::Error>> {
     // Read the global configuration
-    let config = Rc::new(RefCell::new(E4Config::read(project_config_dir)));
+    let config = Rc::new(RefCell::new(E4Config::read(project_config_dir)?));
     let config_clone = config.clone();
     let config_other_clone = config.clone();
 
@@ -86,7 +86,7 @@ fn redraw_window(project_config_dir: &Path, wind: &mut Window) -> Vec<E4Button> 
     let menu_clone = menu.clone();
     let menu_button = menu::MenuItem::new(&["New", "Edit", "Delete"]);
 
-    let mut buttons_clone = buttons.clone();
+    let mut buttons_clone = buttons?.clone();
 
     // Handle tre popup menu and the drag event
     wind.handle({
@@ -103,19 +103,26 @@ fn redraw_window(project_config_dir: &Path, wind: &mut Window) -> Vec<E4Button> 
                         (ey >= button.y && ey <= button.y + button.height) && button.button.active() {
                             pressed_on_button = true;
                             if let Some(val) = menu_button.popup(ex, ey) {
-                                let label = val.label().unwrap();
-                                match label.as_str() {
-                                    "New" => {
-                                        E4Button::new_button(&mut config.borrow_mut(), button);
-                                    },
-                                    "Edit" => {
-                                        button.edit(&mut config.borrow_mut());
-                                    },
-                                    "Delete" => {
-                                        button.delete(&mut config.borrow_mut());
-                                    },
-                                    _ => {
+                                match val.label() {
+                                    Some(label) => {
+                                        match label.as_str() {
+                                            "New" => {
+                                                E4Button::add_button_after(&mut config.borrow_mut(), button);
+                                            },
+                                            "Edit" => {
+                                                button.edit(&mut config.borrow_mut());
+                                            },
+                                            "Delete" => {
+                                                button.delete(&mut config.borrow_mut());
+                                            },
+                                            _ => {
 
+                                            }
+                                        }
+                                    },
+                                    None => {
+                                        let message = "Error: empty menu label";
+                                        fltk::dialog::alert_default(message);
                                     }
                                 }
                             }
@@ -123,16 +130,23 @@ fn redraw_window(project_config_dir: &Path, wind: &mut Window) -> Vec<E4Button> 
                     }
                     if !pressed_on_button {
                         if let Some(val) = menu.popup(ex, ey) {
-                            let label = val.label().unwrap();
-                            match label.as_str() {
-                                "About" => {
-                                    about();
-                                },
-                                "Quit" => {
-                                    app::quit();
-                                },
-                                _ => {
+                            match val.label() {
+                                Some(label) => {
+                                    match label.as_str() {
+                                        "About" => {
+                                            about();
+                                        },
+                                        "Quit" => {
+                                            app::quit();
+                                        },
+                                        _ => {
 
+                                        }
+                                    }
+                                },
+                                None => {
+                                    let message = "Error: empty menu label";
+                                    fltk::dialog::alert_default(message);
                                 }
                             }
                         }
@@ -165,15 +179,22 @@ fn redraw_window(project_config_dir: &Path, wind: &mut Window) -> Vec<E4Button> 
                 if app::event_mouse_button() == app::MouseButton::Right {
                     let (ex, ey) = app::event_coords();
                     if let Some(val) = menu_clone.popup(ex, ey) {
-                        let label = val.label().unwrap();
-                        match label.as_str() {
-                            "About" => {
-                                about();
+                        match val.label() {
+                            Some(label) => {
+                                match label.as_str() {
+                                    "About" => {
+                                        about();
+                                    },
+                                    "Quit" => {
+                                        app::quit();
+                                    },
+                                    _ => {
+                                    }
+                                }
                             },
-                            "Quit" => {
-                                app::quit();
-                            },
-                            _ => {
+                            None => {
+                                let message = "Error: empty menu label";
+                                fltk::dialog::alert_default(message);
                             }
                         }
                     }
@@ -195,7 +216,7 @@ fn redraw_window(project_config_dir: &Path, wind: &mut Window) -> Vec<E4Button> 
         }
     });
 
-    buttons
+    Ok(())
 }
 
 fn main() {
@@ -210,8 +231,20 @@ fn main() {
         .with_label(APP_TITLE);//.center_screen();
 
     // Populate and draw the window
-    let _ = redraw_window(&project_config_dir, &mut wind);
-
-    // Run the FLTK app
-    app.run().expect("Cannot exec the app.");
+    match redraw_window(&project_config_dir, &mut wind) {
+        Ok(_) => {
+            // Run the FLTK app
+            match app.run() {
+                Ok(_) => {},
+                Err(e) => {
+                    let message = format!("Cannot exec the app: {}", e);
+                    fltk::dialog::alert_default(&message);
+                }
+            }
+        },
+        Err(e) => {
+            let message = format!("Cannot draw the window: {}", e);
+            fltk::dialog::alert_default(&message);
+        }
+    }
 }

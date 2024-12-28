@@ -31,7 +31,13 @@ impl E4Icon {
 
     /// Delete the [E4Icon] image.
     pub fn delete(&self, config: &E4Config) {
-        std::fs::remove_file(config.assets_dir.join(&self.path)).unwrap();
+        let file_to_be_deleted = &config.assets_dir.join(&self.path);
+        match std::fs::remove_file(file_to_be_deleted) {
+            Ok(_) => {},
+            Err(e) => {
+                panic!("Cannot delete {}: {}", file_to_be_deleted.display(), e);
+            },
+        }
     }
 
     /// Return the [E4Icon] width.
