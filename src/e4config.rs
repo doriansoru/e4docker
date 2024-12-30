@@ -1,7 +1,12 @@
+use crate::{e4initialize, tr, translations::Translations};
 use configparser::ini::Ini;
-use std::{env, path::{Path,PathBuf}, process::Command};
 use fltk::{app, prelude::*, window::Window};
-use crate::e4initialize;
+use std::{
+    env,
+    path::{Path, PathBuf},
+    process::Command,
+    sync::{Arc, Mutex},
+};
 
 /// Sections in the configuration files.
 /// e4docker.conf.
@@ -10,7 +15,6 @@ pub const E4DOCKER_BUTTON_SECTION: &str = "BUTTONS";
 
 /// A button configuration file.
 pub const BUTTON_BUTTON_SECTION: &str = "BUTTON";
-
 
 // Definisci un tipo di errore personalizzato
 #[derive(Debug)]
@@ -26,7 +30,6 @@ impl std::fmt::Display for E4Error {
 }
 
 impl std::error::Error for E4Error {}
-
 
 /// The configuration of e4docker read from e4docker.conf.
 pub struct E4Config {
@@ -44,10 +47,13 @@ pub struct E4Config {
 }
 
 /// Create the about dialog.
-pub fn create_about_dialog(message: &str) {
-    let mut wind = Window::default()
-        .with_size(500, 300)
-        .with_label("About");
+pub fn create_about_dialog(message: &str, translations: Arc<Mutex<Translations>>) {
+    let mut wind = Window::default().with_size(500, 300).with_label(&tr!(
+        translations,
+        get_or_default,
+        "about",
+        "About"
+    ));
 
     // Create TextDisplay for the message
     let mut text_display = fltk::text::TextDisplay::new(10, 10, 480, 230, "");
@@ -58,7 +64,13 @@ pub fn create_about_dialog(message: &str) {
     text_display.wrap_mode(fltk::text::WrapMode::AtBounds, 0); // Corretto: usando WrapMode::A
 
     // Add OK button at the bottom
-    let mut ok_btn = fltk::button::Button::new(200, 250, 100, 30, "OK");
+    let mut ok_btn = fltk::button::Button::new(
+        200,
+        250,
+        100,
+        30,
+        tr!(translations, get_or_default, "ok", "OK").as_str(),
+    );
     ok_btn.set_callback({
         let mut wind = wind.clone();
         move |_| wind.hide()
@@ -75,9 +87,14 @@ pub fn create_about_dialog(message: &str) {
 }
 
 /// Restart the program.
-pub fn restart_app() {
+pub fn restart_app(translations: Arc<Mutex<Translations>>) {
     // Get the current exe
-    let current_exe = env::current_exe().expect("Failed to get current executable path");
+    let current_exe = env::current_exe().expect(&tr!(
+        translations,
+        get_or_default,
+        "failed-to-get-current-executable-path",
+        "Failed to get current executable path"
+    ));
 
     // Get the args
     let args: Vec<String> = env::args().collect();
@@ -87,12 +104,20 @@ pub fn restart_app() {
         let _ = Command::new(&current_exe)
             .args(&args[1..])
             .spawn()
-            .expect("Failed to restart the program");
+            .expect(&tr!(
+                translations,
+                get_or_default,
+                "failed-to-restart-the-program",
+                "Failed to restart the program"
+            ));
     } else {
         // Start a child process
-        let _ = Command::new(&current_exe)
-            .spawn()
-            .expect("Failed to restart the program");
+        let _ = Command::new(&current_exe).spawn().expect(&tr!(
+            translations,
+            get_or_default,
+            "failed-to-restart-the-program",
+            "Failed to restart the program"
+        ));
     }
     // End the current process
     std::process::exit(0);
@@ -126,14 +151,16 @@ impl std::clone::Clone for E4Config {
 
 impl E4Config {
     /// Read the configuration from config_dir/e4docker.conf.
-    pub fn read(config_dir: &Path) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn read(
+        config_dir: &Path,
+        translations: Arc<Mutex<Translations>>,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
         // Read the config file
         let package_name = env!("CARGO_PKG_NAME");
         let mut config_file = config_dir.join(package_name);
         config_file.set_extension("conf");
         let mut config = Ini::new();
-        let _ = config
-            .load(config_file)?;
+        let _ = config.load(config_file)?;
 
         // Read the x position of the window
         let mut x: i32 = 0;
@@ -190,7 +217,6 @@ impl E4Config {
             icon_height = val.parse()?;
         };
 
-
         // Calculates the window width
         let window_width = (number_of_buttons * icon_width)
             + (number_of_buttons * margin_between_buttons)
@@ -203,7 +229,7 @@ impl E4Config {
         Ok(Self {
             config_dir: config_dir.to_path_buf(),
             buttons,
-            assets_dir: e4initialize::get_package_assets_dir(),
+            assets_dir: e4initialize::get_package_assets_dir(Arc::clone(&translations)),
             margin_between_buttons,
             frame_margin,
             window_width,
@@ -216,91 +242,149 @@ impl E4Config {
     }
 
     /// Get a value from the configuration file.
-    pub fn get_value(&mut self, section: String, key: String) -> Option<String> {
+    pub fn get_value(
+        &mut self,
+        section: String,
+        key: String,
+        translations: Arc<Mutex<Translations>>,
+    ) -> Option<String> {
         // Read the config file
         let package_name = env!("CARGO_PKG_NAME");
         let mut config_file = self.config_dir.join(package_name);
         config_file.set_extension("conf");
         let mut config = Ini::new();
-        let result = config
-            .load(&config_file);
+        let result = config.load(&config_file);
         match result {
             Ok(_) => (),
             Err(e) => {
-                let message = format!("Cannot load e4docker.conf: {}", e);
+                let message = tr!(
+                    translations,
+                    format,
+                    "cannot-load-e4docker-conf",
+                    &[&e.to_string()]
+                );
                 fltk::dialog::alert_default(&message);
-            },
+            }
         };
         // Get and return the key and the value
         config.get(&section, &key)
     }
 
     /// Save the buttons in config_dir/e4docker.conf.
-    pub fn save_buttons(&mut self, buttons: &[String]) {
+    pub fn save_buttons(&mut self, buttons: &[String], translations: Arc<Mutex<Translations>>) {
         // Save the buttons
         for (i, button) in buttons.iter().enumerate() {
-            let key = format!("button{}", i+1);
-            self.set_value(E4DOCKER_BUTTON_SECTION.to_string(), key, Some(button.to_string()));
+            let key = format!("button{}", i + 1);
+            self.set_value(
+                E4DOCKER_BUTTON_SECTION.to_string(),
+                key,
+                Some(button.to_string()),
+                Arc::clone(&translations),
+            );
         }
     }
 
     /// Set a value in the configuration file.
-    pub fn set_value(&mut self, section: String, key: String, value: Option<String>) {
+    pub fn set_value(
+        &mut self,
+        section: String,
+        key: String,
+        value: Option<String>,
+        translations: Arc<Mutex<Translations>>,
+    ) {
         // Read the config file
         let package_name = env!("CARGO_PKG_NAME");
         let mut config_file = self.config_dir.join(package_name);
         config_file.set_extension("conf");
         let mut config = Ini::new();
-        let result = config
-            .load(&config_file);
+        let result = config.load(&config_file);
         match result {
             Ok(_) => (),
             Err(e) => {
-                let message = format!("Cannot load e4docker.conf: {}", e);
+                let message = tr!(
+                    translations,
+                    format,
+                    "cannot-load-e4docker-conf",
+                    &[&e.to_string()]
+                );
                 fltk::dialog::alert_default(&message);
-            },
+            }
         };
         // Set the key and the value
         config.set(&section, &key, value);
-        config.write(config_file).expect("Cannot save e4docker.conf");
+        config.write(config_file).expect(&tr!(
+            translations,
+            get_or_default,
+            "cannot-save-e4docker-conf",
+            "Cannot save e4docker.conf"
+        ));
     }
 
     /// Get the number of buttons in the configuration file
-    pub fn get_number_of_buttons(&mut self) -> Result<i32, Box<dyn std::error::Error>> {
+    pub fn get_number_of_buttons(
+        &mut self,
+        translations: Arc<Mutex<Translations>>,
+    ) -> Result<i32, Box<dyn std::error::Error>> {
         let number_of_buttons: i32;
-        if let Some(val) = self.get_value(E4DOCKER_DOCKER_SECTION.to_string(), String::from("NUMBER_OF_BUTTONS")) {
+        if let Some(val) = self.get_value(
+            E4DOCKER_DOCKER_SECTION.to_string(),
+            String::from("NUMBER_OF_BUTTONS"),
+            Arc::clone(&translations),
+        ) {
             number_of_buttons = val.parse()?;
         } else {
-            return Err(Box::new(
-                E4Error {
-                    details: String::from("Cannot get the number of buttons"),
-                }
-            ));
+            return Err(Box::new(E4Error {
+                details: tr!(
+                    translations,
+                    get_or_default,
+                    "cannot-get-the-number-of-buttons",
+                    "Cannot get the number of buttons"
+                ),
+            }));
         };
         Ok(number_of_buttons)
     }
 
     /// Set the number of buttons in the configuration file
-    pub fn set_number_of_buttons(&mut self, number: i32) {
-        self.set_value(E4DOCKER_DOCKER_SECTION.to_string(), String::from("NUMBER_OF_BUTTONS"), Some(number.to_string()));
+    pub fn set_number_of_buttons(&mut self, number: i32, translations: Arc<Mutex<Translations>>) {
+        self.set_value(
+            E4DOCKER_DOCKER_SECTION.to_string(),
+            String::from("NUMBER_OF_BUTTONS"),
+            Some(number.to_string()),
+            Arc::clone(&translations),
+        );
     }
 
     /// Delete a key from the configuratio file.
-    pub fn remove_key(&mut self, section: String, key: String) {
+    pub fn remove_key(
+        &mut self,
+        section: String,
+        key: String,
+        translations: Arc<Mutex<Translations>>,
+    ) {
         let package_name = env!("CARGO_PKG_NAME");
         let mut config_file = self.config_dir.join(package_name);
         config_file.set_extension("conf");
         let mut config = Ini::new();
-        let result = config
-            .load(&config_file);
+        let result = config.load(&config_file);
         match result {
             Ok(_) => (),
             Err(e) => {
-                let message = format!("Cannot load e4docker.conf: {}", e);
+                let message = tr!(
+                    translations,
+                    format,
+                    "cannot-load-e4docker-conf",
+                    &[&e.to_string()]
+                );
                 fltk::dialog::alert_default(&message);
-            },
+            }
         };
         config.remove_key(&section, &key);
-        config.write(config_file).expect("Cannot save e4docker.conf");
+        config.write(config_file).expect(&tr!(
+            translations,
+            get_or_default,
+            "cannot-save-e4docker-conf",
+            "Cannot save e4docker.conf"
+        ));
     }
 }

@@ -1,7 +1,13 @@
-use base64::{Engine, engine::general_purpose};
-use std::{io::Write, path::PathBuf};
+use crate::{tr, translations::Translations};
+use base64::{engine::general_purpose, Engine};
+use std::{
+    io::Write,
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 
-const GENERIC_PNG: &str = "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABhGlDQ1BJQ0MgcHJvZmlsZQAAKJF9
+const GENERIC_PNG: &str =
+    "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABhGlDQ1BJQ0MgcHJvZmlsZQAAKJF9
 kT1Iw0AYht+miiItgnYQcchQnexiRRxrFYpQIdQKrTqYXPoHTRqSFBdHwbXg4M9i1cHFWVcHV0EQ
 /AFxdnBSdJESv0sKLWK847iH97735e47QGhWmWb1JABNt81MKinm8qti3ytCGKIZRlxmljEnSWn4
 jq97BPh+F+NZ/nV/jrBasBgQEIkTzDBt4g3imU3b4LxPHGFlWSU+J5406YLEj1xXPH7jXHJZ4JkR
@@ -20,7 +26,9 @@ OH0ABr93O2dy7tjECslfgbt1tCiFb8CEoZtexZ9Dtj6cSNBlpLn07itw/XBRKmvKtAo4iKc9cmJQ
 9/e1qpJn/wKUDujnkcHdPXl1PLZhcKcdtT5kmoyGGc36xarzM4yWvuQazf6rMtwBbWiehsGr5+cA
 AAAASUVORK5CYII=";
 
-pub fn create_generic_button(destination: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
+pub fn create_generic_button(
+    destination: &std::path::Path,
+) -> Result<(), Box<dyn std::error::Error>> {
     let img64 = GENERIC_PNG.replace("\n", "");
     let bytes = general_purpose::STANDARD.decode(img64)?;
 
@@ -33,11 +41,16 @@ pub fn create_generic_button(destination: &std::path::Path) -> Result<(), Box<dy
     Ok(())
 }
 
-pub fn get_package_config_dir() -> PathBuf {
+pub fn get_package_config_dir(translations: Arc<Mutex<Translations>>) -> PathBuf {
     // Get the package name
     let package_name = env!("CARGO_PKG_NAME");
 
-    let config_dir = dirs::config_dir().expect("Cannot create the configuration directory.");
+    let config_dir = dirs::config_dir().expect(&tr!(
+        translations,
+        get_or_default,
+        "cannot-create-the-configuration-directory",
+        "Cannot create the configuration directory"
+    ));
 
     // Create the path of the configuration directory for this app
     let project_config_dir = config_dir.join(package_name);
@@ -46,35 +59,59 @@ pub fn get_package_config_dir() -> PathBuf {
     // Create this app configuration directory if it does not exist
     if !project_config_dir.exists() {
         // Create the project configuration directory
-        std::fs::create_dir_all(&project_config_dir)
-            .expect("Cannot create the project config directory.");
+        std::fs::create_dir_all(&project_config_dir).expect(&tr!(
+            translations,
+            get_or_default,
+            "cannot-create-the-project-config-directory",
+            "Cannot create the project config directory"
+        ));
         // Create the assets directory
-        std::fs::create_dir_all(&assets_dir)
-                .expect("Cannot create assets config directory.");
+        std::fs::create_dir_all(&assets_dir).expect(&tr!(
+            translations,
+            get_or_default,
+            "cannot-create-assets-config-directory",
+            "Cannot create assets config directory"
+        ));
     }
 
     // Generic button png file
-    let mut generic_png =  assets_dir.join("generic");
+    let mut generic_png = assets_dir.join("generic");
     generic_png.set_extension("png");
-    if !generic_png.exists()  {
+    if !generic_png.exists() {
         match create_generic_button(&generic_png) {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(e) => {
-                panic!("Cannot create {}: {}", generic_png.display(), e);
-            },
+                panic!(
+                    "{}",
+                    &tr!(
+                        translations,
+                        format,
+                        "cannot-create",
+                        &[&generic_png.display().to_string(), &e.to_string()]
+                    )
+                );
+            }
         }
     }
 
     // Generic button conf file
-    let mut generic_conf =  project_config_dir.join("generic");
+    let mut generic_conf = project_config_dir.join("generic");
     generic_conf.set_extension("conf");
     if !generic_conf.exists() {
         // Create generic.conf
-        let mut file = std::fs::File::create(&generic_conf).expect("Cannot create generic.conf");
-        file.write_all(b"[button]
+        let mut file = std::fs::File::create(&generic_conf).expect(&tr!(
+            translations,
+            get_or_default,
+            "cannot-create-generic-conf",
+            "Cannot create generic.conf"
+        ));
+        file.write_all(
+            b"[button]
 arguments=
 icon=generic.png
-command=/usr/bin/generic").expect("Cannot write on generic.conf");
+command=/usr/bin/generic",
+        )
+        .expect("Cannot write on generic.conf");
     }
 
     // App conf file
@@ -82,24 +119,37 @@ command=/usr/bin/generic").expect("Cannot write on generic.conf");
     e4docker_conf.set_extension("conf");
     if !e4docker_conf.exists() {
         // Create generic.conf
-        let mut file = std::fs::File::create(&e4docker_conf).expect("Cannot create e4docker.conf");
-        file.write_all(b"[e4docker]
+        let mut file = std::fs::File::create(&e4docker_conf).expect(&tr!(
+            translations,
+            get_or_default,
+            "cannot-create-e4docker-conf",
+            "Cannot create e4docker.conf"
+        ));
+        file.write_all(
+            b"[e4docker]
 number_of_buttons=1
 frame_margin=10
 margin_between_buttons=20
 icon_width=32
 icon_height=32
 [buttons]
-button1=generic").expect("Cannot write on e4docker.conf");
+button1=generic",
+        )
+        .expect(&tr!(
+            translations,
+            get_or_default,
+            "cannot-write-on-e4docker-conf",
+            "Cannot write on e4docker.conf"
+        ));
     }
 
     project_config_dir
 }
 
-pub fn get_package_assets_dir() -> PathBuf {
-    get_package_config_dir().join("assets")
+pub fn get_package_assets_dir(translations: Arc<Mutex<Translations>>) -> PathBuf {
+    get_package_config_dir(Arc::clone(&translations)).join("assets")
 }
 
-pub fn get_generic_icon() -> PathBuf {
-    get_package_assets_dir().join("generic.png")
+pub fn get_generic_icon(translations: Arc<Mutex<Translations>>) -> PathBuf {
+    get_package_assets_dir(Arc::clone(&translations)).join("generic.png")
 }

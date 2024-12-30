@@ -32,8 +32,7 @@ impl E4Command {
                 .args([self.arguments.as_str()])
                 .spawn()?;
         } else {
-            let _ = Command::new(self.cmd.as_str())
-                .spawn()?;
+            let _ = Command::new(self.cmd.as_str()).spawn()?;
         }
         Ok(())
     }
@@ -48,7 +47,6 @@ impl E4Command {
     pub fn get_arguments(&self) -> &String {
         &self.arguments
     }
-
 
     /// Get the [Command] of the [E4Command].
     pub fn get_cmd(&self) -> &String {

@@ -1,5 +1,8 @@
-use std::path::PathBuf;
-use crate::e4config::E4Config;
+use crate::{e4config::E4Config, tr, translations::Translations};
+use std::{
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 
 /// The icon on a [crate::e4button::E4Button].
 pub struct E4Icon {
@@ -30,13 +33,21 @@ impl E4Icon {
     }
 
     /// Delete the [E4Icon] image.
-    pub fn delete(&self, config: &E4Config) {
+    pub fn delete(&self, config: &E4Config, translations: Arc<Mutex<Translations>>) {
         let file_to_be_deleted = &config.assets_dir.join(&self.path);
         match std::fs::remove_file(file_to_be_deleted) {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(e) => {
-                panic!("Cannot delete {}: {}", file_to_be_deleted.display(), e);
-            },
+                panic!(
+                    "{}",
+                    &tr!(
+                        translations,
+                        format,
+                        "cannot-delete",
+                        &[&file_to_be_deleted.display().to_string(), &e.to_string()]
+                    )
+                );
+            }
         }
     }
 

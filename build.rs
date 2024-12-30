@@ -1,6 +1,6 @@
-use std::process::Command;
 use std::env;
 use std::path::Path;
+use std::process::Command;
 
 fn main() {
     let target = env::var("TARGET").unwrap();
@@ -25,6 +25,9 @@ fn main() {
             .unwrap();
 
         // Add the icon.res path
-        println!("cargo:rustc-link-arg={}", dest_path.canonicalize().unwrap().display());
+        println!(
+            "cargo:rustc-link-arg={}",
+            dest_path.canonicalize().unwrap().display()
+        );
     }
 }
