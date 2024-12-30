@@ -155,7 +155,7 @@ pub fn create_buttons(
     for button_name in &config.buttons {
         // Read the button config
         let button_config: E4ButtonConfig =
-            E4Button::read_config(config, button_name, Arc::clone(&translations))?;
+            E4Button::read_config(config, button_name, translations.clone())?;
         // Create the icon
         let icon = E4Icon::new(
             PathBuf::from(button_config.icon_path),
@@ -172,7 +172,7 @@ pub fn create_buttons(
             Rc::clone(&command),
             config,
             icon,
-            Arc::clone(&translations),
+            translations.clone(),
         )?;
         current_e4button.button.set_tooltip(
             tr!(
@@ -317,7 +317,7 @@ impl E4Button {
                     fltk::image::PngImage::from_data(&png_data)?
                 } else {
                     let new_image = ImageReader::open(crate::e4initialize::get_generic_icon(
-                        Arc::clone(&translations),
+                        translations.clone(),
                     ))?
                     .decode()?;
                     let png_bytes: Vec<u8> = vec![];
@@ -337,7 +337,7 @@ impl E4Button {
                 );
                 fltk::dialog::alert_default(&message);
                 let new_image = ImageReader::open(crate::e4initialize::get_generic_icon(
-                    Arc::clone(&translations),
+                    translations.clone(),
                 ))?
                 .decode()?;
                 let png_bytes: Vec<u8> = vec![];
@@ -397,7 +397,7 @@ impl E4Button {
             .center_y(parent);
         let (x, y) = (button.x(), button.y());
         let command_clone = Rc::clone(&command);
-        let translations_clone = Arc::clone(&translations);
+        let translations_clone = translations.clone();
         button.set_callback(move |_| {
             let result = command_clone.borrow_mut().exec();
             match result {
@@ -418,7 +418,7 @@ impl E4Button {
         let mut button_icon = if !icon.path().exists() {
             match Self::get_fltk_image(
                 &config.assets_dir.join(icon.path()),
-                Arc::clone(&translations),
+                translations.clone(),
             ) {
                 Ok(image) => image,
                 Err(e) => {
@@ -433,7 +433,7 @@ impl E4Button {
                     );
                     fltk::dialog::alert_default(&message);
                     let new_image = ImageReader::open(crate::e4initialize::get_generic_icon(
-                        Arc::clone(&translations),
+                        translations.clone(),
                     ))?
                     .decode()?;
                     let png_bytes: Vec<u8> = vec![];
@@ -443,7 +443,7 @@ impl E4Button {
                 }
             }
         } else {
-            match Self::get_fltk_image(icon.path(), Arc::clone(&translations)) {
+            match Self::get_fltk_image(icon.path(), translations.clone()) {
                 Ok(image) => image,
                 Err(e) => {
                     let message = tr!(
@@ -458,7 +458,7 @@ impl E4Button {
                     fltk::dialog::alert_default(&message);
 
                     let new_image = ImageReader::open(crate::e4initialize::get_generic_icon(
-                        Arc::clone(&translations),
+                        translations.clone(),
                     ))?
                     .decode()?;
                     let png_bytes: Vec<u8> = vec![];
@@ -533,18 +533,18 @@ impl E4Button {
             config.remove_key(
                 crate::e4config::E4DOCKER_BUTTON_SECTION.to_string(),
                 key_to_remove,
-                Arc::clone(&translations),
+                translations.clone(),
             );
         }
-        config.set_number_of_buttons(buttons.len() as i32, Arc::clone(&translations));
-        config.save_buttons(&buttons, Arc::clone(&translations));
-        crate::e4config::restart_app(Arc::clone(&translations));
+        config.set_number_of_buttons(buttons.len() as i32, translations.clone());
+        config.save_buttons(&buttons, translations.clone());
+        crate::e4config::restart_app(translations.clone());
     }
 
     /// Edit the [E4Button].
     pub fn edit(&mut self, config: &mut E4Config, translations: Arc<Mutex<Translations>>) {
         // Create the ui
-        match E4ButtonEditUI::new(Arc::clone(&translations)) {
+        match E4ButtonEditUI::new(translations.clone()) {
             Ok(mut ui) => {
                 let mut config_file = config.config_dir.join(&self.name);
                 config_file.set_extension("conf");
@@ -578,7 +578,7 @@ impl E4Button {
                 // Populate the ui
                 ui.name.set_value(grid_values[0]);
                 let icon_path = &config.assets_dir.join(self.icon.path());
-                let mut image = match Self::get_fltk_image(icon_path, Arc::clone(&translations)) {
+                let mut image = match Self::get_fltk_image(icon_path, translations.clone()) {
                     Ok(img) => img,
                     Err(e) => {
                         panic!(
@@ -637,7 +637,7 @@ impl E4Button {
                         };
                         let mut new_image = match Self::get_fltk_image(
                             &PathBuf::from(&image_path),
-                            Arc::clone(&translations),
+                            translations.clone(),
                         ) {
                             Ok(img) => img,
                             Err(e) => {
@@ -650,7 +650,7 @@ impl E4Button {
                                 fltk::dialog::alert_default(&message);
                                 match Self::get_fltk_image(
                                     &icon_path_clone.borrow_mut(),
-                                    Arc::clone(&translations),
+                                    translations.clone(),
                                 ) {
                                     Ok(img) => img,
                                     Err(e) => {
@@ -821,7 +821,7 @@ impl E4Button {
                             crate::e4config::E4DOCKER_BUTTON_SECTION.to_string(),
                             format!("button{}", n),
                             Some(name),
-                            Arc::clone(&translations_third_clone),
+                            translations_third_clone.clone(),
                         );
                         match std::fs::copy(&tmp_file_path, &config_file) {
                             Ok(_) => {}
@@ -841,7 +841,7 @@ impl E4Button {
                                 );
                             }
                         }
-                        crate::e4config::restart_app(Arc::clone(&translations_third_clone));
+                        crate::e4config::restart_app(translations_third_clone.clone());
                     }
                 });
 
@@ -870,7 +870,7 @@ impl E4Button {
         sibling: &E4Button,
         translations: Arc<Mutex<Translations>>,
     ) {
-        match E4ButtonEditUI::new(Arc::clone(&translations)) {
+        match E4ButtonEditUI::new(translations.clone()) {
             Ok(mut ui) => {
                 let name = GENERIC;
                 let mut config_file = config.config_dir.join(name);
@@ -896,7 +896,7 @@ impl E4Button {
                     }
                 }
                 let button_config =
-                    match Self::read_config(config, &name.to_string(), Arc::clone(&translations)) {
+                    match Self::read_config(config, &name.to_string(), translations.clone()) {
                         Ok(config) => config,
                         Err(e) => {
                             panic!(
@@ -925,7 +925,7 @@ impl E4Button {
 
                 let icon_path = &mut config.assets_dir.join(GENERIC);
                 icon_path.set_extension("png");
-                let image = match Self::get_fltk_image(icon_path, Arc::clone(&translations)) {
+                let image = match Self::get_fltk_image(icon_path, translations.clone()) {
                     Ok(img) => img,
                     Err(e) => panic!(
                         "{}",
@@ -979,7 +979,7 @@ impl E4Button {
                         };
                         let mut new_image = match Self::get_fltk_image(
                             &PathBuf::from(&image_path),
-                            Arc::clone(&translations),
+                            translations.clone(),
                         ) {
                             Ok(img) => img,
                             Err(e) => {
@@ -992,7 +992,7 @@ impl E4Button {
                                 fltk::dialog::alert_default(&message);
                                 match Self::get_fltk_image(
                                     &icon_path_clone.borrow_mut(),
-                                    Arc::clone(&translations),
+                                    translations.clone(),
                                 ) {
                                     Ok(img) => img,
                                     Err(e) => {
@@ -1164,7 +1164,7 @@ impl E4Button {
 
                         // Modify e4docker.conf to put the button after sibling
                         let number_of_buttons = match config_clone
-                            .get_number_of_buttons(Arc::clone(&translations_third_clone))
+                            .get_number_of_buttons(translations_third_clone.clone())
                         {
                             Ok(b) => b + 1,
                             Err(e) => {
@@ -1181,7 +1181,7 @@ impl E4Button {
                         };
                         config_clone.set_number_of_buttons(
                             number_of_buttons,
-                            Arc::clone(&translations_third_clone),
+                            translations_third_clone.clone(),
                         );
                         let mut new_buttons = vec![];
                         for button in &config_clone.buttons {
@@ -1191,8 +1191,8 @@ impl E4Button {
                             }
                         }
                         config_clone
-                            .save_buttons(&new_buttons, Arc::clone(&translations_third_clone));
-                        crate::e4config::restart_app(Arc::clone(&translations_third_clone));
+                            .save_buttons(&new_buttons, translations_third_clone.clone());
+                        crate::e4config::restart_app(translations_third_clone.clone());
                     }
                 });
 
@@ -1248,7 +1248,7 @@ impl E4Button {
         };
         let icon_path: String = match config.get(crate::e4config::BUTTON_BUTTON_SECTION, "ICON") {
             Some(path) => path,
-            None => crate::e4initialize::get_generic_icon(Arc::clone(&translations))
+            None => crate::e4initialize::get_generic_icon(translations.clone())
                 .display()
                 .to_string(),
         };

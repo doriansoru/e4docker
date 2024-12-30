@@ -229,7 +229,7 @@ impl E4Config {
         Ok(Self {
             config_dir: config_dir.to_path_buf(),
             buttons,
-            assets_dir: e4initialize::get_package_assets_dir(Arc::clone(&translations)),
+            assets_dir: e4initialize::get_package_assets_dir(translations.clone()),
             margin_between_buttons,
             frame_margin,
             window_width,
@@ -279,7 +279,7 @@ impl E4Config {
                 E4DOCKER_BUTTON_SECTION.to_string(),
                 key,
                 Some(button.to_string()),
-                Arc::clone(&translations),
+                translations.clone(),
             );
         }
     }
@@ -329,7 +329,7 @@ impl E4Config {
         if let Some(val) = self.get_value(
             E4DOCKER_DOCKER_SECTION.to_string(),
             String::from("NUMBER_OF_BUTTONS"),
-            Arc::clone(&translations),
+            translations.clone(),
         ) {
             number_of_buttons = val.parse()?;
         } else {
@@ -351,7 +351,7 @@ impl E4Config {
             E4DOCKER_DOCKER_SECTION.to_string(),
             String::from("NUMBER_OF_BUTTONS"),
             Some(number.to_string()),
-            Arc::clone(&translations),
+            translations.clone(),
         );
     }
 

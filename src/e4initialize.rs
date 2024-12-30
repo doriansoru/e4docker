@@ -147,9 +147,9 @@ button1=generic",
 }
 
 pub fn get_package_assets_dir(translations: Arc<Mutex<Translations>>) -> PathBuf {
-    get_package_config_dir(Arc::clone(&translations)).join("assets")
+    get_package_config_dir(translations.clone()).join("assets")
 }
 
 pub fn get_generic_icon(translations: Arc<Mutex<Translations>>) -> PathBuf {
-    get_package_assets_dir(Arc::clone(&translations)).join("generic.png")
+    get_package_assets_dir(translations.clone()).join("generic.png")
 }

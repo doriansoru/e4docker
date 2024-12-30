@@ -31,7 +31,7 @@ fn about(translations: Arc<Mutex<Translations>>) {
             "about-dialog",
             &[&version, &authors]
         ),
-        Arc::clone(&translations),
+        translations.clone(),
     );
 }
 
@@ -44,7 +44,7 @@ fn redraw_window(
     // Read the global configuration
     let config = Rc::new(RefCell::new(E4Config::read(
         project_config_dir,
-        Arc::clone(&translations),
+        translations.clone(),
     )?));
     let config_clone = config.clone();
     let config_other_clone = config.clone();
@@ -75,7 +75,7 @@ fn redraw_window(
         &config.borrow(),
         wind,
         &frame,
-        Arc::clone(&translations),
+        translations.clone(),
     );
 
     // For the menu bar
@@ -90,8 +90,8 @@ fn redraw_window(
         Some(m) => m.to_string(),
         None => "&File/Quit\t".to_string(),
     };
-    let translations_clone = Arc::clone(&translations);
-    let translations_second_clone = Arc::clone(&translations);
+    let translations_clone = translations.clone();
+    let translations_second_clone = translations.clone();
     menubar.add(
         &about_menu,
         enums::Shortcut::Ctrl | 'a',
@@ -221,13 +221,13 @@ fn redraw_window(
                     e4config::E4DOCKER_DOCKER_SECTION.to_string(),
                     "x".to_string(),
                     Some((app::event_x_root() - x).to_string()),
-                    Arc::clone(&translations_second_clone),
+                    translations_second_clone.clone(),
                 );
                 config_clone.borrow_mut().set_value(
                     e4config::E4DOCKER_DOCKER_SECTION.to_string(),
                     "y".to_string(),
                     Some((app::event_y_root() - y).to_string()),
-                    Arc::clone(&translations_second_clone),
+                    translations_second_clone.clone(),
                 );
                 w.set_pos(app::event_x_root() - x, app::event_y_root() - y);
                 true
@@ -249,7 +249,7 @@ fn redraw_window(
                         match val.label() {
                             Some(label) => {
                                 if label == about_menu {
-                                    about(Arc::clone(&translations));
+                                    about(translations.clone());
                                 } else if label == quit_menu {
                                     app::quit();
                                 }
@@ -272,13 +272,13 @@ fn redraw_window(
                     e4config::E4DOCKER_DOCKER_SECTION.to_string(),
                     "x".to_string(),
                     Some((app::event_x_root() - x).to_string()),
-                    Arc::clone(&translations),
+                    translations.clone(),
                 );
                 config_other_clone.borrow_mut().set_value(
                     e4config::E4DOCKER_DOCKER_SECTION.to_string(),
                     "y".to_string(),
                     Some((app::event_y_root() - y).to_string()),
-                    Arc::clone(&translations),
+                    translations.clone(),
                 );
                 wind_clone.set_pos(app::event_x_root() - x, app::event_y_root() - y);
                 true
@@ -293,7 +293,7 @@ fn redraw_window(
 fn main() {
     let translations = Translations::get_instance();
     // Get (or create) the path of the configuration directory for this app
-    let project_config_dir = e4initialize::get_package_config_dir(Arc::clone(&translations));
+    let project_config_dir = e4initialize::get_package_config_dir(translations.clone());
 
     // Create a FLTK app
     let app = app::App::default();
@@ -302,7 +302,7 @@ fn main() {
     let mut wind = Window::default().with_label(APP_TITLE); //.center_screen();
 
     // Populate and draw the window
-    match redraw_window(&project_config_dir, &mut wind, Arc::clone(&translations)) {
+    match redraw_window(&project_config_dir, &mut wind, translations.clone()) {
         Ok(_) => {
             // Run the FLTK app
             match app.run() {
