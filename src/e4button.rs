@@ -861,10 +861,7 @@ impl E4Button {
     }
 
     /// Create a new [E4Button] at the end.
-    pub fn new_button(
-        config: &mut E4Config,
-        translations: Arc<Mutex<Translations>>,
-    ) {
+    pub fn new_button(config: &mut E4Config, translations: Arc<Mutex<Translations>>) {
         match E4ButtonEditUI::new(translations.clone()) {
             Ok(mut ui) => {
                 let name = GENERIC;

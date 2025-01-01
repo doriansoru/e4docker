@@ -128,10 +128,7 @@ fn redraw_window(
         enums::Shortcut::Ctrl | 'n',
         menu::MenuFlag::Normal,
         move |_| {
-            E4Button::new_button(
-                &mut config_clone.borrow_mut(),
-                translations_clone.clone(),
-            );
+            E4Button::new_button(&mut config_clone.borrow_mut(), translations_clone.clone());
         },
     );
 
@@ -205,12 +202,7 @@ fn redraw_window(
         "Error: empty menu label"
     );
 
-    let items = [
-        move_left_menu,
-        edit_menu,
-        delete_menu,
-        move_right_menu,
-    ];
+    let items = [move_left_menu, edit_menu, delete_menu, move_right_menu];
     let menu_button = menu::MenuItem::new(&items);
     let buttons_clone = buttons?.clone();
 
@@ -231,8 +223,14 @@ fn redraw_window(
                             && (ey >= button.position.y && ey <= button.position.y + button.height)
                             && button.button.active()
                         {
-                            let move_left_index = items.iter().position(|&item| item == move_left_menu).unwrap() as i32;
-                            let move_right_index = items.iter().position(|&item| item == move_right_menu).unwrap() as i32;
+                            let move_left_index = items
+                                .iter()
+                                .position(|&item| item == move_left_menu)
+                                .unwrap() as i32;
+                            let move_right_index = items
+                                .iter()
+                                .position(|&item| item == move_right_menu)
+                                .unwrap() as i32;
                             if i == 0 {
                                 menu_button.at(move_left_index).unwrap().deactivate();
                                 menu_button.at(move_right_index).unwrap().activate();
