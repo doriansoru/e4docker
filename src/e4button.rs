@@ -860,10 +860,9 @@ impl E4Button {
         }
     }
 
-    /// Create a new [E4Button] after sibling.
-    pub fn add_button_after(
+    /// Create a new [E4Button] at the end.
+    pub fn new_button(
         config: &mut E4Config,
-        sibling: &E4Button,
         translations: Arc<Mutex<Translations>>,
     ) {
         match E4ButtonEditUI::new(translations.clone()) {
@@ -909,8 +908,8 @@ impl E4Button {
                 ui.window.set_label(&tr!(
                     translations,
                     get_or_default,
-                    "new-e4button-menu",
-                    "New E4Button"
+                    "new-button",
+                    "New Button"
                 ));
                 let command = button_config.command;
                 let icon = button_config.icon_path;
@@ -1101,7 +1100,6 @@ impl E4Button {
 
                 let mut config_clone = config.clone();
                 // Add OK button at the bottom
-                let sibling_name = sibling.name.clone();
                 ui.save.set_callback({
                     let mut wind = ui.window.clone();
                     move |_| {
@@ -1158,7 +1156,7 @@ impl E4Button {
                             }
                         };
 
-                        // Modify e4docker.conf to put the button after sibling
+                        // Modify the number of buttons and the buttons list in e4docker.conf.
                         let number_of_buttons = match config_clone
                             .get_number_of_buttons(translations_third_clone.clone())
                         {
@@ -1182,10 +1180,8 @@ impl E4Button {
                         let mut new_buttons = vec![];
                         for button in &config_clone.buttons {
                             new_buttons.push(button.clone());
-                            if button == &sibling_name {
-                                new_buttons.push(name.to_string());
-                            }
                         }
+                        new_buttons.push(name.to_string());
                         config_clone.save_buttons(&new_buttons, translations_third_clone.clone());
                         crate::e4config::restart_app(translations_third_clone.clone());
                     }
