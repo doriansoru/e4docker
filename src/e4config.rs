@@ -1,6 +1,6 @@
 use crate::{e4initialize, tr, translations::Translations};
 use configparser::ini::Ini;
-use fltk::{app, prelude::*, window::Window};
+use fltk::{app, misc::Spinner, prelude::*, window::Window};
 use std::{
     env,
     path::{Path, PathBuf},
@@ -12,6 +12,11 @@ use std::{
 /// e4docker.conf.
 pub const E4DOCKER_DOCKER_SECTION: &str = "E4DOCKER";
 pub const E4DOCKER_BUTTON_SECTION: &str = "BUTTONS";
+
+const E4DOCKER_MARGIN_BETWEEN_BUTTONS: &str = "MARGIN_BETWEEN_BUTTONS";
+const E4DOCKER_FRAME_MARGIN: &str = "FRAME_MARGIN";
+const E4DOCKER_ICON_WIDTH: &str = "ICON_WIDTH";
+const E4DOCKER_ICON_HEIGHT: &str = "ICON_HEIGHT";
 
 /// A button configuration file.
 pub const BUTTON_BUTTON_SECTION: &str = "BUTTON";
@@ -150,6 +155,87 @@ impl std::clone::Clone for E4Config {
 }
 
 impl E4Config {
+    /// Creates and manages the settings dialog
+    pub fn create_settings_dialog(
+        &mut self,
+        translations: Arc<Mutex<Translations>>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let mut window = Window::default().with_size(700, 300);
+        let mut grid = fltk_grid::Grid::default()
+            .with_size(650, 250)
+            .center_of(&window);
+        grid.show_grid(false);
+        grid.set_gap(10, 10);
+        let grid_values = [self.icon_width as f64, self.icon_height as f64];
+        let ncols = 2;
+        let nrows = 3;
+        grid.set_layout(nrows, ncols);
+
+        let labels = [
+            &tr!(translations, get_or_default, "icon-width", "Icon width"),
+            &tr!(translations, get_or_default, "icon-height", "Icon height"),
+        ];
+
+        // Populates the grid
+        let mut icon_width_label = fltk::frame::Frame::default().with_label(labels[0]);
+        let mut icon_width_input = Spinner::default();
+        icon_width_input.set_step(1.0);
+        icon_width_input.set_range(16.0, 512.0);
+        icon_width_input.set_value(grid_values[0]);
+        grid.set_widget(&mut icon_width_label, 0, 0)?;
+        grid.set_widget(&mut icon_width_input, 0, 1)?;
+
+        let mut icon_height_label = fltk::frame::Frame::default().with_label(labels[1]);
+        let mut icon_height_input = Spinner::default();
+        icon_height_input.set_step(1.0);
+        icon_height_input.set_range(16.0, 512.0);
+        icon_height_input.set_value(grid_values[1]);
+        grid.set_widget(&mut icon_height_label, 1, 0)?;
+        grid.set_widget(&mut icon_height_input, 1, 1)?;
+
+        // Add Save button at the bottom
+        let mut save_button = fltk::button::Button::new(
+            200,
+            250,
+            100,
+            30,
+            tr!(translations, get_or_default, "save", "Save").as_str(),
+        );
+        grid.set_widget(&mut save_button, 2, 0..2)?;
+
+        save_button.set_callback({
+            let mut wind = window.clone();
+            let mut myself = self.clone();
+            move |_| {
+                let icon_width = (icon_width_input.value() as i32).to_string();
+                let icon_height = (icon_height_input.value() as i32).to_string();
+                wind.hide();
+                myself.set_value(
+                    E4DOCKER_DOCKER_SECTION.to_string(),
+                    E4DOCKER_ICON_WIDTH.to_string(),
+                    Some(icon_width),
+                    translations.clone(),
+                );
+                myself.set_value(
+                    E4DOCKER_DOCKER_SECTION.to_string(),
+                    E4DOCKER_ICON_HEIGHT.to_string(),
+                    Some(icon_height),
+                    translations.clone(),
+                );
+                crate::e4config::restart_app(translations.clone());
+            }
+        });
+
+        window.make_modal(true);
+        window.end();
+        window.show();
+        // Run modal window
+        while window.shown() {
+            app::wait();
+        }
+        Ok(())
+    }
+
     /// Read the configuration from config_dir/e4docker.conf.
     pub fn read(
         config_dir: &Path,
@@ -187,12 +273,12 @@ impl E4Config {
         };
 
         // Read the margin between the buttons
-        if let Some(val) = config.get(E4DOCKER_DOCKER_SECTION, "MARGIN_BETWEEN_BUTTONS") {
+        if let Some(val) = config.get(E4DOCKER_DOCKER_SECTION, E4DOCKER_MARGIN_BETWEEN_BUTTONS) {
             margin_between_buttons = val.parse()?;
         };
 
         // Read the margin between the buttons
-        if let Some(val) = config.get(E4DOCKER_DOCKER_SECTION, "FRAME_MARGIN") {
+        if let Some(val) = config.get(E4DOCKER_DOCKER_SECTION, E4DOCKER_FRAME_MARGIN) {
             frame_margin = val.parse()?;
         };
 
@@ -208,12 +294,12 @@ impl E4Config {
         }
 
         // Read the buttons width (the same as the icons width)
-        if let Some(val) = config.get(E4DOCKER_DOCKER_SECTION, "ICON_WIDTH") {
+        if let Some(val) = config.get(E4DOCKER_DOCKER_SECTION, E4DOCKER_ICON_WIDTH) {
             icon_width = val.parse()?;
         };
 
         // Read the buttons height (the same as the icons height)
-        if let Some(val) = config.get(E4DOCKER_DOCKER_SECTION, "ICON_HEIGHT") {
+        if let Some(val) = config.get(E4DOCKER_DOCKER_SECTION, E4DOCKER_ICON_HEIGHT) {
             icon_height = val.parse()?;
         };
 
@@ -282,6 +368,20 @@ impl E4Config {
                 translations.clone(),
             );
         }
+    }
+
+    pub fn swap_buttons(
+        &mut self,
+        buttons: &mut [String],
+        first_button_index: usize,
+        second_button_index: usize,
+        translations: Arc<Mutex<Translations>>,
+    ) {
+        let temp_button = buttons[first_button_index].clone();
+        buttons[first_button_index] = buttons[second_button_index].clone();
+        buttons[second_button_index] = temp_button;
+        self.save_buttons(buttons, translations.clone());
+        crate::e4config::restart_app(translations.clone())
     }
 
     /// Set a value in the configuration file.

@@ -336,10 +336,9 @@ impl E4Button {
                     &[&image_path.display()]
                 );
                 fltk::dialog::alert_default(&message);
-                let new_image = ImageReader::open(crate::e4initialize::get_generic_icon(
-                    translations.clone(),
-                ))?
-                .decode()?;
+                let new_image =
+                    ImageReader::open(crate::e4initialize::get_generic_icon(translations.clone()))?
+                        .decode()?;
                 let png_bytes: Vec<u8> = vec![];
                 let mut cursor = Cursor::new(png_bytes);
                 new_image.write_to(&mut cursor, image::ImageFormat::Png)?;
@@ -416,10 +415,7 @@ impl E4Button {
 
         // If the icon path does not exist, search for the icon in the assets directory
         let mut button_icon = if !icon.path().exists() {
-            match Self::get_fltk_image(
-                &config.assets_dir.join(icon.path()),
-                translations.clone(),
-            ) {
+            match Self::get_fltk_image(&config.assets_dir.join(icon.path()), translations.clone()) {
                 Ok(image) => image,
                 Err(e) => {
                     let message = tr!(
@@ -1190,8 +1186,7 @@ impl E4Button {
                                 new_buttons.push(name.to_string());
                             }
                         }
-                        config_clone
-                            .save_buttons(&new_buttons, translations_third_clone.clone());
+                        config_clone.save_buttons(&new_buttons, translations_third_clone.clone());
                         crate::e4config::restart_app(translations_third_clone.clone());
                     }
                 });

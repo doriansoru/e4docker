@@ -35,6 +35,21 @@ fn about(translations: Arc<Mutex<Translations>>) {
     );
 }
 
+fn settings(config: &mut E4Config, translations: Arc<Mutex<Translations>>) {
+    match config.create_settings_dialog(translations.clone()) {
+        Ok(_) => {}
+        Err(e) => {
+            let message = tr!(
+                translations,
+                format,
+                "error-in-saving-settings",
+                &[&e.to_string()]
+            );
+            fltk::dialog::alert_default(&message);
+        }
+    }
+}
+
 /// Redraw the [app] window.
 fn redraw_window(
     project_config_dir: &Path,
@@ -47,7 +62,8 @@ fn redraw_window(
         translations.clone(),
     )?));
     let config_clone = config.clone();
-    let config_other_clone = config.clone();
+    let config_second_clone = config.clone();
+    let config_third_clone = config.clone();
 
     let menu_height = round(config.borrow().window_height as f64 / 3.0, 0) as i32;
     wind.clear();
@@ -71,13 +87,16 @@ fn redraw_window(
     wind.set_border(false);
 
     // Put the buttons in the window
-    let buttons = e4docker::e4button::create_buttons(
-        &config.borrow(),
-        wind,
-        &frame,
-        translations.clone(),
-    );
+    let buttons =
+        e4docker::e4button::create_buttons(&config.borrow(), wind, &frame, translations.clone());
 
+    let mut buttons_names: Vec<String> = vec![];
+
+    let buttons_for_names =
+        e4docker::e4button::create_buttons(&config.borrow(), wind, &frame, translations.clone());
+    for button in buttons_for_names? {
+        buttons_names.push(button.name);
+    }
     // For the menu bar
     let mut menubar = menu::MenuBar::default().with_size(config.borrow().window_width, menu_height);
     menubar.set_color(fltk::enums::Color::from_u32(0xe8dcca));
@@ -86,18 +105,34 @@ fn redraw_window(
         Some(m) => m.to_string(),
         None => "&File/About...\t".to_string(),
     };
+    let settings_menu = match tr!(translations, get, "file-settings-menu") {
+        Some(m) => m.to_string(),
+        None => "&File/Settings...\t".to_string(),
+    };
     let quit_menu = match tr!(translations, get, "file-quit-menu") {
         Some(m) => m.to_string(),
         None => "&File/Quit\t".to_string(),
     };
     let translations_clone = translations.clone();
     let translations_second_clone = translations.clone();
+    let translations_third_clone = translations.clone();
+    menubar.add(
+        &settings_menu,
+        enums::Shortcut::Ctrl | 's',
+        menu::MenuFlag::Normal,
+        move |_| {
+            settings(
+                &mut config_second_clone.borrow_mut(),
+                translations_clone.clone(),
+            );
+        },
+    );
     menubar.add(
         &about_menu,
         enums::Shortcut::Ctrl | 'a',
-        menu::MenuFlag::Normal,
+        menu::MenuFlag::MenuDivider,
         move |_| {
-            about(translations_clone.clone());
+            about(translations_second_clone.clone());
         },
     );
     menubar.add(
@@ -123,30 +158,44 @@ fn redraw_window(
     }
 
     // For the popup menu
-    let about_menu: &'static str =
-        Box::leak(tr!(translations, get_or_default, "about", "About").into_boxed_str());
-    let quit_menu: &'static str =
-        Box::leak(tr!(translations, get_or_default, "quit", "Quit").into_boxed_str());
+    let move_left_menu: &'static str = Box::leak(
+        format!(
+            "{} {}",
+            "\u{2190}",
+            tr!(translations, get_or_default, "move", "Move")
+        )
+        .into_boxed_str(),
+    );
     let new_menu: &'static str =
         Box::leak(tr!(translations, get_or_default, "new", "New").into_boxed_str());
     let edit_menu: &'static str =
         Box::leak(tr!(translations, get_or_default, "edit-menu", "Edit").into_boxed_str());
     let delete_menu: &'static str =
         Box::leak(tr!(translations, get_or_default, "delete", "Delete").into_boxed_str());
+    let move_right_menu: &'static str = Box::leak(
+        format!(
+            "{} {}",
+            tr!(translations, get_or_default, "move", "Move"),
+            "\u{2192}"
+        )
+        .into_boxed_str(),
+    );
+
     let empty_label_message = tr!(
         translations,
         get_or_default,
         "error-empty-menu-label",
         "Error: empty menu label"
     );
-    let empty_label_message_clone = empty_label_message.clone();
-    let empty_label_message_clone_bis = empty_label_message.clone();
 
-    let menu = menu::MenuItem::new(&[about_menu, quit_menu]);
-
-    let menu_clone = menu.clone();
-    let menu_button = menu::MenuItem::new(&[new_menu, edit_menu, delete_menu]);
-    let mut buttons_clone = buttons?.clone();
+    let menu_button = menu::MenuItem::new(&[
+        move_left_menu,
+        new_menu,
+        edit_menu,
+        delete_menu,
+        move_right_menu,
+    ]);
+    let buttons_clone = buttons?.clone();
 
     // Handle tre popup menu and the drag event
     wind.handle({
@@ -156,54 +205,63 @@ fn redraw_window(
             enums::Event::Push => {
                 // Handle the popup menu
                 if app::event_mouse_button() == app::MouseButton::Right {
-                    let mut pressed_on_button: bool = false;
                     let (ex, ey) = app::event_coords();
-                    for button in &mut buttons_clone {
+                    for (i, mut button) in &mut <Vec<E4Button> as Clone>::clone(&buttons_clone)
+                        .into_iter()
+                        .enumerate()
+                    {
                         if (ex >= button.position.x && ex <= button.position.x + button.width)
                             && (ey >= button.position.y && ey <= button.position.y + button.height)
                             && button.button.active()
                         {
-                            pressed_on_button = true;
+                            if i == 0 {
+                                menu_button.at(0).unwrap().deactivate();
+                                menu_button.at(4).unwrap().activate();
+                            } else if i == (buttons_clone.len() - 1) {
+                                menu_button.at(0).unwrap().activate();
+                                menu_button.at(4).unwrap().deactivate();
+                            } else {
+                                menu_button.at(0).unwrap().activate();
+                                menu_button.at(4).unwrap().activate();
+                            }
                             if let Some(val) = menu_button.popup(ex, ey) {
                                 match val.label() {
                                     Some(label) => {
-                                        if label == new_menu {
+                                        if label == move_left_menu {
+                                            let _ = &mut config.borrow_mut().swap_buttons(
+                                                &mut buttons_names,
+                                                i,
+                                                i - 1,
+                                                translations_third_clone.clone(),
+                                            );
+                                        } else if label == new_menu {
                                             E4Button::add_button_after(
                                                 &mut config.borrow_mut(),
-                                                button,
-                                                translations_second_clone.clone(),
+                                                &button,
+                                                translations_third_clone.clone(),
                                             );
                                         } else if label == edit_menu {
                                             button.edit(
                                                 &mut config.borrow_mut(),
-                                                translations_second_clone.clone(),
+                                                translations_third_clone.clone(),
                                             );
                                         } else if label == delete_menu {
                                             button.delete(
                                                 &mut config.borrow_mut(),
-                                                translations_second_clone.clone(),
+                                                translations_third_clone.clone(),
+                                            );
+                                        } else if label == move_right_menu {
+                                            let _ = &mut config.borrow_mut().swap_buttons(
+                                                &mut buttons_names,
+                                                i,
+                                                i + 1,
+                                                translations_third_clone.clone(),
                                             );
                                         }
                                     }
                                     None => {
                                         fltk::dialog::alert_default(&empty_label_message);
                                     }
-                                }
-                            }
-                        }
-                    }
-                    if !pressed_on_button {
-                        if let Some(val) = menu.popup(ex, ey) {
-                            match val.label() {
-                                Some(label) => {
-                                    if label == about_menu {
-                                        about(translations_second_clone.clone());
-                                    } else if label == quit_menu {
-                                        app::quit();
-                                    }
-                                }
-                                None => {
-                                    fltk::dialog::alert_default(&empty_label_message_clone);
                                 }
                             }
                         }
@@ -221,13 +279,13 @@ fn redraw_window(
                     e4config::E4DOCKER_DOCKER_SECTION.to_string(),
                     "x".to_string(),
                     Some((app::event_x_root() - x).to_string()),
-                    translations_second_clone.clone(),
+                    translations_third_clone.clone(),
                 );
                 config_clone.borrow_mut().set_value(
                     e4config::E4DOCKER_DOCKER_SECTION.to_string(),
                     "y".to_string(),
                     Some((app::event_y_root() - y).to_string()),
-                    translations_second_clone.clone(),
+                    translations_third_clone.clone(),
                 );
                 w.set_pos(app::event_x_root() - x, app::event_y_root() - y);
                 true
@@ -243,23 +301,7 @@ fn redraw_window(
         move |_, ev| match ev {
             enums::Event::Push => {
                 // Handle the popup menu
-                if app::event_mouse_button() == app::MouseButton::Right {
-                    let (ex, ey) = app::event_coords();
-                    if let Some(val) = menu_clone.popup(ex, ey) {
-                        match val.label() {
-                            Some(label) => {
-                                if label == about_menu {
-                                    about(translations.clone());
-                                } else if label == quit_menu {
-                                    app::quit();
-                                }
-                            }
-                            None => {
-                                fltk::dialog::alert_default(&empty_label_message_clone_bis);
-                            }
-                        }
-                    }
-                } else {
+                if app::event_mouse_button() == app::MouseButton::Left {
                     let coords = app::event_coords();
                     x = coords.0;
                     y = coords.1;
@@ -268,13 +310,13 @@ fn redraw_window(
             }
             // Handle the drag event
             enums::Event::Drag => {
-                config_other_clone.borrow_mut().set_value(
+                config_third_clone.borrow_mut().set_value(
                     e4config::E4DOCKER_DOCKER_SECTION.to_string(),
                     "x".to_string(),
                     Some((app::event_x_root() - x).to_string()),
                     translations.clone(),
                 );
-                config_other_clone.borrow_mut().set_value(
+                config_third_clone.borrow_mut().set_value(
                     e4config::E4DOCKER_DOCKER_SECTION.to_string(),
                     "y".to_string(),
                     Some((app::event_y_root() - y).to_string()),
