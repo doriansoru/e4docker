@@ -1,10 +1,5 @@
+use std::{error, thread, process::Command, sync::{Arc, Mutex}};
 use crate::{tr, translations::Translations};
-use std::{
-    error,
-    process::Command,
-    sync::{Arc, Mutex},
-    thread,
-};
 
 /// A struct which holds a [Command] and its arguments.
 pub struct E4Command {
@@ -31,21 +26,19 @@ impl E4Command {
     }
 
     /// Exec the [Command] of the [E4Command]. Return () or the [error::Error].
-    pub fn exec(
-        &mut self,
-        translations: Arc<Mutex<Translations>>,
-    ) -> Result<(), Box<dyn error::Error>> {
+    pub fn exec(&mut self, translations: Arc<Mutex<Translations>>) -> Result<(), Box<dyn error::Error>> {
         // With arguments
         let cmd = self.cmd.clone();
         let args = self.arguments.clone();
         let translations_clone = translations.clone();
         if !self.arguments.is_empty() {
             thread::spawn(move || {
-                let child = Command::new(&cmd).spawn();
+                let child = Command::new(&cmd)
+                    .spawn();
                 match child {
                     Ok(mut c) => {
                         let _ = c.wait(); // Wait nel thread separato
-                    }
+                    },
                     Err(e) => {
                         let message = tr!(
                             translations_clone,
@@ -59,11 +52,13 @@ impl E4Command {
             });
         } else {
             thread::spawn(move || {
-                let child = Command::new(&cmd).args([&args]).spawn();
+                let child = Command::new(&cmd)
+                    .args([&args])
+                    .spawn();
                 match child {
                     Ok(mut c) => {
                         let _ = c.wait(); // Wait nel thread separato
-                    }
+                    },
                     Err(e) => {
                         let message = tr!(
                             translations_clone,
