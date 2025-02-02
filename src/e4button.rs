@@ -503,17 +503,19 @@ impl E4Button {
         frame_border.set_frame(fltk::enums::FrameType::FlatBox);
 
         let command_clone = Arc::clone(&command);
-        let translations_clone = translations.clone();
+        let translations_second_clone = translations.clone();
+        let translations_third_clone = translations.clone();
         button.set_callback(move |_| {
+            let translations_clone = Translations::get_instance();
             let mut guard = command_clone.lock().unwrap();
-            let result = guard.exec();
+            let result = guard.exec(translations_clone);
             drop(guard);
             match result {
                 Ok(_) => (),
                 Err(e) => {
                     let guard = command_clone.lock().unwrap();
                     let message = tr!(
-                        translations_clone,
+                        translations_third_clone,
                         format,
                         "failed-to-execute-command",
                         &[guard.get_cmd(), &e.to_string()]
@@ -526,7 +528,10 @@ impl E4Button {
 
         // If the icon path does not exist, search for the icon in the assets directory
         let mut button_icon = if !icon.path().exists() {
-            match Self::get_fltk_image(&config.assets_dir.join(icon.path()), translations.clone()) {
+            match Self::get_fltk_image(
+                &config.assets_dir.join(icon.path()),
+                translations_second_clone,
+            ) {
                 Ok(image) => image,
                 Err(e) => {
                     let message = tr!(

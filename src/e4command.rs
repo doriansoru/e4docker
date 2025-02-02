@@ -1,4 +1,10 @@
-use std::{error, process::Command};
+use crate::{tr, translations::Translations};
+use std::{
+    error,
+    process::Command,
+    sync::{Arc, Mutex},
+    thread,
+};
 
 /// A struct which holds a [Command] and its arguments.
 pub struct E4Command {
@@ -25,14 +31,50 @@ impl E4Command {
     }
 
     /// Exec the [Command] of the [E4Command]. Return () or the [error::Error].
-    pub fn exec(&mut self) -> Result<(), Box<dyn error::Error>> {
+    pub fn exec(
+        &mut self,
+        translations: Arc<Mutex<Translations>>,
+    ) -> Result<(), Box<dyn error::Error>> {
         // With arguments
+        let cmd = self.cmd.clone();
+        let args = self.arguments.clone();
+        let translations_clone = translations.clone();
         if !self.arguments.is_empty() {
-            let _ = Command::new(self.cmd.as_str())
-                .args([self.arguments.as_str()])
-                .spawn()?;
+            thread::spawn(move || {
+                let child = Command::new(&cmd).spawn();
+                match child {
+                    Ok(mut c) => {
+                        let _ = c.wait(); // Wait nel thread separato
+                    }
+                    Err(e) => {
+                        let message = tr!(
+                            translations_clone,
+                            format,
+                            "failed-to-execute-command",
+                            &[&cmd, &e.to_string()]
+                        );
+                        fltk::dialog::alert_default(&message);
+                    }
+                }
+            });
         } else {
-            let _ = Command::new(self.cmd.as_str()).spawn()?;
+            thread::spawn(move || {
+                let child = Command::new(&cmd).args([&args]).spawn();
+                match child {
+                    Ok(mut c) => {
+                        let _ = c.wait(); // Wait nel thread separato
+                    }
+                    Err(e) => {
+                        let message = tr!(
+                            translations_clone,
+                            format,
+                            "failed-to-execute-command",
+                            &[&cmd, &e.to_string()]
+                        );
+                        fltk::dialog::alert_default(&message);
+                    }
+                }
+            });
         }
         Ok(())
     }
