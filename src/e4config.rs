@@ -106,7 +106,7 @@ pub fn restart_app(translations: Arc<Mutex<Translations>>) {
 
     if args.len() > 1 {
         // Start a child process
-        let _ = Command::new(&current_exe)
+        let mut child = Command::new(&current_exe)
             .args(&args[1..])
             .spawn()
             .expect(&tr!(
@@ -115,13 +115,25 @@ pub fn restart_app(translations: Arc<Mutex<Translations>>) {
                 "failed-to-restart-the-program",
                 "Failed to restart the program"
             ));
+        let _ = child.wait().expect(&tr!(
+            translations,
+            get_or_default,
+            "failed-to-wait-on-child",
+            "Failed to wait on the child program"
+        ));
     } else {
         // Start a child process
-        let _ = Command::new(&current_exe).spawn().expect(&tr!(
+        let mut child = Command::new(&current_exe).spawn().expect(&tr!(
             translations,
             get_or_default,
             "failed-to-restart-the-program",
             "Failed to restart the program"
+        ));
+        let _ = child.wait().expect(&tr!(
+            translations,
+            get_or_default,
+            "failed-to-wait-on-child",
+            "Failed to wait on the child program"
         ));
     }
     // End the current process
