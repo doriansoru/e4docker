@@ -1,6 +1,6 @@
 [package]
 name = "e4docker"
-version = "0.7.0"
+version = "0.7.1"
 edition = "2021"
 authors = [ "Dorian Soru <doriansoru@gmail.com>"]
 license = "GPL-3.0"
