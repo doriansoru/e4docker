@@ -109,7 +109,7 @@ pub fn restart_app(translations: Arc<Mutex<Translations>>) {
 
     if args.len() > 1 {
         thread::spawn(move || {
-            let mut child = Command::new(&current_exe)
+            let _ = Command::new(&current_exe)
                 .args(&args[1..])
                 .spawn()
                 .expect(&tr!(
@@ -117,32 +117,23 @@ pub fn restart_app(translations: Arc<Mutex<Translations>>) {
                     get_or_default,
                     "failed-to-restart-the-program",
                     "Failed to restart the program"
-                ));
-            let _ = child.wait().expect(&tr!(
-                translations_clone,
-                get_or_default,
-                "failed-to-wait-on-child",
-                "Failed to wait on the child program"
             ));
+            // End the current process
+            std::process::exit(0);
         });
     } else {
         thread::spawn(move || {
-            let mut child = Command::new(&current_exe).spawn().expect(&tr!(
+            let _ = Command::new(&current_exe).spawn().expect(&tr!(
                 translations_clone,
                 get_or_default,
                 "failed-to-restart-the-program",
                 "Failed to restart the program"
             ));
-            let _ = child.wait().expect(&tr!(
-                translations_clone,
-                get_or_default,
-                "failed-to-wait-on-child",
-                "Failed to wait on the child program"
-            ));
+
+            // End the current process
+            std::process::exit(0);
         });
     }
-    // End the current process
-    std::process::exit(0);
 }
 
 /// Get a temporary file name for storing temporary configuration data.
