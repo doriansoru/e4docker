@@ -13,4 +13,7 @@ pub mod e4button;
 /// To create a generic button
 pub mod e4initialize;
 
+/// Module for translations
 pub mod translations;
+
+pub mod e4processes;

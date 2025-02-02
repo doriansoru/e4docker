@@ -37,6 +37,11 @@ impl E4Command {
         Ok(())
     }
 
+    /// Get the [E4Command]
+    pub fn get(&self) -> &String {
+        &self.cmd
+    }
+
     /// Set the [E4Command] and its args.
     pub fn set(&mut self, cmd: String, arguments: String) {
         self.cmd = cmd;

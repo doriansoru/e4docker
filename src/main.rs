@@ -7,7 +7,8 @@
 //! - assets: put here the icons for your favourite apps.
 
 use e4docker::{
-    e4button::E4Button, e4config, e4config::E4Config, e4initialize, tr, translations::Translations,
+    e4button::E4Button, e4config, e4config::E4Config, e4initialize, e4processes, tr,
+    translations::Translations,
 };
 use fltk::{app, enums, enums::FrameType, frame::Frame, menu, prelude::*, window::Window};
 use round::round;
@@ -55,7 +56,7 @@ fn redraw_window(
     project_config_dir: &Path,
     wind: &mut Window,
     translations: Arc<Mutex<Translations>>,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<Vec<E4Button>, Box<dyn std::error::Error>> {
     // Read the global configuration
     let config = Rc::new(RefCell::new(E4Config::read(
         project_config_dir,
@@ -90,6 +91,8 @@ fn redraw_window(
     // Put the buttons in the window
     let buttons =
         e4docker::e4button::create_buttons(&config.borrow(), wind, &frame, translations.clone());
+
+    let buttons_second_clone = buttons?.clone();
 
     let mut buttons_names: Vec<String> = vec![];
 
@@ -204,7 +207,7 @@ fn redraw_window(
 
     let items = [move_left_menu, edit_menu, delete_menu, move_right_menu];
     let menu_button = menu::MenuItem::new(&items);
-    let buttons_clone = buttons?.clone();
+    let buttons_clone = buttons_second_clone.clone();
 
     // Handle tre popup menu and the drag event
     wind.handle({
@@ -219,8 +222,10 @@ fn redraw_window(
                         .into_iter()
                         .enumerate()
                     {
-                        if (ex >= button.position.x && ex <= button.position.x + button.width)
-                            && (ey >= button.position.y && ey <= button.position.y + button.height)
+                        if (ex >= button.position.x()
+                            && ex <= button.position.x() + button.size.width())
+                            && (ey >= button.position.y()
+                                && ey <= button.position.y() + button.size.height())
                             && button.button.active()
                         {
                             let move_left_index = items
@@ -340,7 +345,7 @@ fn redraw_window(
         }
     });
 
-    Ok(())
+    Ok(buttons_second_clone)
 }
 
 fn main() {
@@ -356,7 +361,42 @@ fn main() {
 
     // Populate and draw the window
     match redraw_window(&project_config_dir, &mut wind, translations.clone()) {
-        Ok(_) => {
+        Ok(buttons) => {
+            e4processes::setup_process_checker(buttons, &app);
+            // redraw the buttons backgound_color when needed
+            /*let mut buttons_clone = buttons.clone();
+            let check = Box::leak(Box::new(None));
+            *check = Some(Box::new(move |_| {
+                s.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+                for button in &mut buttons_clone {
+                    let command = button.command.lock().unwrap();
+                    let command_path = &command.get().clone();
+                    drop(command);
+                    let command_path = Path::new(command_path);
+                    let process_name = command_path.file_name().unwrap();
+                    let process_running = s.processes_by_name(process_name).next().is_some();
+                    match (process_running, button.button.color()) {
+                        (true, fltk::enums::Color::TransparentBg) => {
+                            button.button.set_color(fltk::enums::Color::White);
+                            button.button.redraw();
+                        },
+                        (false, fltk::enums::Color::White) => {
+                            button.button.set_color(fltk::enums::Color::TransparentBg);
+                            button.button.redraw();
+                        },
+                        _ => {}
+                    }
+                }
+                if let Some(f) = check.as_ref() {
+                    app::add_timeout3(interval, f.clone());
+                }
+            }));
+
+            // Avvia il primo timeout
+            if let Some(f) = check.as_ref() {
+                app::add_timeout3(interval, f.clone());
+            }*/
+
             // Run the FLTK app
             match app.run() {
                 Ok(_) => {}

@@ -2,7 +2,9 @@ use crate::{
     e4command::E4Command, e4config::E4Config, e4icon::E4Icon, tr, translations::Translations,
 };
 use configparser::ini::Ini;
-use fltk::{app, button::Button, frame::Frame, input::Input, prelude::*, window::Window};
+use fltk::{
+    app, button::Button, enums::Color, frame::Frame, input::Input, prelude::*, window::Window,
+};
 use image::ImageReader;
 use pelite::pe32::{Pe as Pe32, PeFile as PeFile32};
 use pelite::pe64::{Pe as Pe64, PeFile as PeFile64};
@@ -112,10 +114,108 @@ impl E4ButtonEditUI {
     }
 }
 
+/// A struct for the line below the [E4Button]
+pub struct BorderIndicator {
+    frame: Frame,
+    is_active: bool,
+}
+
+impl std::clone::Clone for BorderIndicator {
+    fn clone(&self) -> Self {
+        Self {
+            frame: self.frame.clone(),
+            is_active: self.is_active,
+        }
+    }
+}
+
+impl BorderIndicator {
+    fn new(x: i32, y: i32, w: i32, h: i32) -> Self {
+        let mut frame = Frame::new(
+            x,
+            y + h + 2, // 2 pixel dal fondo
+            w,
+            2, // altezza della linea
+            None,
+        );
+        frame.set_color(Color::White); // Inizialmente trasparente
+        frame.set_frame(fltk::enums::FrameType::FlatBox);
+
+        Self {
+            frame,
+            is_active: false,
+        }
+    }
+
+    pub fn set_active(&mut self, active: bool) {
+        if active != self.is_active {
+            self.is_active = active;
+            if active {
+                self.frame.set_color(Color::Blue);
+            } else {
+                self.frame.set_color(Color::White);
+            }
+            self.frame.redraw();
+        }
+    }
+
+    pub fn is_active(&self) -> bool {
+        self.is_active
+    }
+}
+
 /// A struct for the position of the button
 pub struct Position {
-    pub x: i32,
-    pub y: i32,
+    x: i32,
+    y: i32,
+}
+
+impl Position {
+    pub fn x(&self) -> i32 {
+        self.x
+    }
+
+    pub fn y(&self) -> i32 {
+        self.y
+    }
+}
+
+impl std::clone::Clone for Position {
+    fn clone(&self) -> Self {
+        Self {
+            x: self.x,
+            y: self.y,
+        }
+    }
+}
+
+/// A struct for the sizze of the button
+pub struct Size {
+    pub w: i32,
+    pub h: i32,
+}
+
+impl Size {
+    pub fn new(w: i32, h: i32) -> Self {
+        Self { w, h }
+    }
+
+    pub fn width(&self) -> i32 {
+        self.w
+    }
+
+    pub fn height(&self) -> i32 {
+        self.h
+    }
+}
+
+impl std::clone::Clone for Size {
+    fn clone(&self) -> Self {
+        Self {
+            w: self.w,
+            h: self.h,
+        }
+    }
 }
 
 /// A fltk [Button] improved with a [E4Command].
@@ -124,16 +224,16 @@ pub struct E4Button {
     pub name: String,
     /// The position of the button
     pub position: Position,
-    /// The width of the button
-    pub width: i32,
-    /// The height of the button
-    pub height: i32,
+    /// The size of the button
+    pub size: Size,
     /// The fltk [Button]
     pub button: Button,
     /// The button icon
     pub icon: E4Icon,
-    /// The [E4Command] enclosed in a [Rc] to allow shared ownership and a [RefCell] to allow interior mutability through the [E4Button::set_command] implementation.
-    pub command: Rc<RefCell<E4Command>>,
+    /// The [E4Command] enclosed in a [Arc] to allow shared ownership and a [Mutex] to allow interior mutability through the [E4Button::set_command] implementation.
+    pub command: Arc<Mutex<E4Command>>,
+    /// The border of the [E4Button]
+    pub border: BorderIndicator,
 }
 
 /// Create the [E4Button]s.
@@ -163,13 +263,13 @@ pub fn create_buttons(
             config.icon_height,
         );
         // Create the command
-        let command = Rc::new(RefCell::new(button_config.command));
+        let command = Arc::new(Mutex::new(button_config.command));
         // Create the button
         current_e4button = E4Button::new(
             button_name,
             Position { x, y },
             frame,
-            Rc::clone(&command),
+            Arc::clone(&command),
             config,
             icon,
             translations.clone(),
@@ -196,15 +296,12 @@ impl std::clone::Clone for E4Button {
     fn clone(&self) -> Self {
         Self {
             name: self.name.clone(),
-            position: Position {
-                x: self.position.x,
-                y: self.position.y,
-            },
-            width: self.width,
-            height: self.height,
+            position: self.position.clone(),
+            size: self.size.clone(),
             button: self.button.clone(),
             icon: self.icon.clone(),
             command: self.command.clone(),
+            border: self.border.clone(),
         }
     }
 }
@@ -358,7 +455,7 @@ impl E4Button {
     /// use e4docker::{e4button::E4Button, e4command::E4Command};
     /// use e4docker::{e4config::E4Config, e4icon::E4Icon};
     /// use fltk::{frame::Frame, prelude::*};
-    /// use std::{cell::RefCell, rc::Rc, path::PathBuf};
+    /// use std::{sync::Arc, sync::Mutex, path::PathBuf};
     ///
     /// // Read the global configuration
     /// let directory = PathBuf::from("~")
@@ -368,7 +465,7 @@ impl E4Button {
     /// let config = E4Config::read(&project_config_dir).unwrap();
     /// let frame = Frame::default();
     /// let command = E4Command::new(String::from("/usr/bin/nano"), vec![]);
-    /// let command = Rc::new(RefCell::new(command));
+    /// let command = Arc::new(Mutex::new(command));
     /// let icon = E4Icon::new(PathBuf::from("icon.png"), 64, 64);
     ///
     /// let my_button = E4Button::new(
@@ -385,7 +482,7 @@ impl E4Button {
         name: &String,
         position: Position,
         parent: &Frame,
-        command: Rc<RefCell<E4Command>>,
+        command: Arc<Mutex<E4Command>>,
         config: &E4Config,
         icon: E4Icon,
         translations: Arc<Mutex<Translations>>,
@@ -395,19 +492,33 @@ impl E4Button {
             .with_size(icon.width(), icon.height())
             .center_y(parent);
         let (x, y) = (button.x(), button.y());
-        let command_clone = Rc::clone(&command);
+        let mut frame_border = Frame::new(
+            button.x(),
+            button.y() + button.height() - 2, // 2 pixel dal fondo
+            button.width(),
+            2, // altezza della linea
+            None,
+        );
+        frame_border.set_color(Color::from_u32(0)); // Inizialmente trasparente
+        frame_border.set_frame(fltk::enums::FrameType::FlatBox);
+
+        let command_clone = Arc::clone(&command);
         let translations_clone = translations.clone();
         button.set_callback(move |_| {
-            let result = command_clone.borrow_mut().exec();
+            let mut guard = command_clone.lock().unwrap();
+            let result = guard.exec();
+            drop(guard);
             match result {
                 Ok(_) => (),
                 Err(e) => {
+                    let guard = command_clone.lock().unwrap();
                     let message = tr!(
                         translations_clone,
                         format,
                         "failed-to-execute-command",
-                        &[command_clone.borrow().get_cmd(), &e.to_string()]
+                        &[guard.get_cmd(), &e.to_string()]
                     );
+                    drop(guard);
                     fltk::dialog::alert_default(&message);
                 }
             };
@@ -468,20 +579,23 @@ impl E4Button {
 
         button_icon.scale(w, h, true, true);
         button.set_image(Some(button_icon));
+        let border = BorderIndicator::new(x, y, w, h);
         Ok(E4Button {
             name: name.to_string(),
             position: Position { x, y },
-            width: w,
-            height: h,
+            size: Size::new(w, y),
             button,
             icon,
             command,
+            border,
         })
     }
 
     /// Set a new command for the [E4Button].
     pub fn set_command(&self, cmd: String, arguments: String) {
-        self.command.borrow_mut().set(cmd, arguments);
+        let mut guard = self.command.lock().unwrap();
+        guard.set(cmd, arguments);
+        drop(guard);
     }
 
     /// Delete the [E4Button].
@@ -562,13 +676,13 @@ impl E4Button {
                 }
                 ui.window
                     .set_label(tr!(translations, format, "edit", &[&self.name]).as_str());
-                let command = self.command.borrow();
+                let command = self.command.lock().unwrap();
                 let icon = self.icon.path().display().to_string();
                 let grid_values = [
                     &self.name,
                     &icon,
-                    command.get_cmd(),
-                    command.get_arguments(),
+                    &command.get_cmd().clone(),
+                    &command.get_arguments().clone(),
                 ];
 
                 // Populate the ui
@@ -588,8 +702,9 @@ impl E4Button {
                         );
                     }
                 };
-                image.scale(self.width, self.height, true, true);
-                ui.button_icon.set_size(self.width, self.height);
+                image.scale(self.size.width(), self.size.height(), true, true);
+                ui.button_icon
+                    .set_size(self.size.width(), self.size.height());
 
                 ui.button_icon.set_image(Some(image));
 
@@ -598,7 +713,7 @@ impl E4Button {
                 let icon_path_clone = Rc::clone(&icon_path);
 
                 let assets_dir = config.assets_dir.clone();
-                let (w, h) = (self.width, self.height);
+                let (w, h) = (self.size.width(), self.size.height());
                 let translations_clone = translations.clone();
                 let translations_second_clone = translations.clone();
                 let translations_third_clone = translations.clone();
@@ -756,7 +871,7 @@ impl E4Button {
                 });
 
                 ui.arguments.set_value(command.get_arguments());
-
+                drop(command);
                 // Add OK button at the bottom
                 let mut config_clone = config.clone();
                 let old_name = self.name.clone();
