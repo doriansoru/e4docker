@@ -229,13 +229,17 @@ macro_rules! tr {
         let mut translations_lock = $translations
             .lock()
             .expect("Failed to acquire translations lock");
-        translations_lock.$method($key, $args)
+        let value = translations_lock.$method($key, $args);
+        drop(translations_lock);
+        value
     }};
     ($translations:expr, $method:ident, $key:expr) => {{
         let mut translations_lock = $translations
             .lock()
             .expect("Failed to acquire translations lock");
-        translations_lock.$method($key)
+        let value = translations_lock.$method($key);
+        drop(translations_lock);
+        value
     }};
 }
 

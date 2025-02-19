@@ -1,0 +1,7 @@
+tracing_subscriber - init success
+[26679:26806:0219/111507.001080:ERROR:object_proxy.cc(576)] Failed to call method: org.freedesktop.DBus.Properties.Get: object_path= /org/freedesktop/UPower: org.freedesktop.DBus.Error.ServiceUnknown: The name org.freedesktop.UPower was not provided by any .service files
+[26679:26806:0219/111507.001513:ERROR:object_proxy.cc(576)] Failed to call method: org.freedesktop.UPower.GetDisplayDevice: object_path= /org/freedesktop/UPower: org.freedesktop.DBus.Error.ServiceUnknown: The name org.freedesktop.UPower was not provided by any .service files
+[26679:26806:0219/111507.002134:ERROR:object_proxy.cc(576)] Failed to call method: org.freedesktop.UPower.EnumerateDevices: object_path= /org/freedesktop/UPower: org.freedesktop.DBus.Error.ServiceUnknown: The name org.freedesktop.UPower was not provided by any .service files
+[26679:26679:0219/111507.183907:ERROR:object_proxy.cc(576)] Failed to call method: org.freedesktop.portal.Secret.RetrieveSecret: object_path= /org/freedesktop/portal/desktop: org.freedesktop.DBus.Error.UnknownMethod: Interfaccia «org.freedesktop.portal.Secret» inesistente sull'oggetto nel percorso /org/freedesktop/portal/desktop
+[26679:26679:0219/111507.183958:ERROR:request.cc(97)] Method call failed.
+[26679:26679:0219/111516.625780:ERROR:sharing_service.cc(303)] Device registration failed with fatal error
